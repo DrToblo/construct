@@ -1,0 +1,21 @@
+/*
+ * Scoped overrides for Mol* injected styles.
+ * Import this inside the StructureViewer component to prevent
+ * Mol*'s global CSS resets from leaking into the rest of the app.
+ */
+
+.molstar-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Ensure Mol*'s canvas fills its container */
+.molstar-container canvas {
+  display: block;
+}
+
+/* Override Mol* default background to match dark theme */
+.molstar-container .msp-plugin {
+  background-color: #1a1d27 !important;
+}

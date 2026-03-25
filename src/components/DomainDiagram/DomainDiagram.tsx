@@ -20,6 +20,7 @@ export function DomainDiagram({ domains, sequenceLength }: DomainDiagramProps) {
 
   const startResidue = useStore((s) => s.startResidue);
   const endResidue = useStore((s) => s.endResidue);
+  const selectedSources = useStore((s) => s.selectedDomainSources);
 
   // Observe container width
   useEffect(() => {
@@ -33,15 +34,16 @@ export function DomainDiagram({ domains, sequenceLength }: DomainDiagramProps) {
     return () => ro.disconnect();
   }, []);
 
-  // Group domains by source database
+  // Group domains by source database and filter by selection
   const groups = useMemo(() => {
     const map = new Map<string, Domain[]>();
     for (const d of domains) {
+      if (!selectedSources.includes(d.sourceDatabase)) continue;
       if (!map.has(d.sourceDatabase)) map.set(d.sourceDatabase, []);
       map.get(d.sourceDatabase)!.push(d);
     }
     return Array.from(map.entries());
-  }, [domains]);
+  }, [domains, selectedSources]);
 
   const svgWidth = Math.max(0, containerWidth - LABEL_WIDTH - SVG_PADDING * 2);
   const svgHeight = groups.length * TRACK_HEIGHT + AXIS_HEIGHT;
@@ -59,9 +61,10 @@ export function DomainDiagram({ domains, sequenceLength }: DomainDiagramProps) {
       <div
         style={{
           padding: '12px 16px',
-          color: '#6b7280',
+          color: '#94a3b8',
           fontSize: '13px',
           fontStyle: 'italic',
+          background: '#ffffff',
         }}
       >
         No domain annotations found
@@ -69,8 +72,24 @@ export function DomainDiagram({ domains, sequenceLength }: DomainDiagramProps) {
     );
   }
 
+  if (groups.length === 0) {
+    return (
+      <div
+        style={{
+          padding: '12px 16px',
+          color: '#94a3b8',
+          fontSize: '13px',
+          fontStyle: 'italic',
+          background: '#ffffff',
+        }}
+      >
+        No sources selected. Use the menu above to enable domain tracks.
+      </div>
+    );
+  }
+
   return (
-    <div ref={containerRef} style={{ width: '100%', overflowX: 'auto', padding: `${SVG_PADDING}px` }}>
+    <div ref={containerRef} style={{ width: '100%', overflowX: 'auto', padding: `${SVG_PADDING}px`, background: '#ffffff' }}>
       <svg
         width={svgWidth + LABEL_WIDTH}
         height={svgHeight}
@@ -78,13 +97,13 @@ export function DomainDiagram({ domains, sequenceLength }: DomainDiagramProps) {
       >
         {/* Axis */}
         <g transform={`translate(${LABEL_WIDTH}, ${groups.length * TRACK_HEIGHT})`}>
-          <line x1={0} y1={0} x2={svgWidth} y2={0} stroke="#4b5563" strokeWidth={1} />
+          <line x1={0} y1={0} x2={svgWidth} y2={0} stroke="#e2e8f0" strokeWidth={1} />
           {axisTicks().map((tick) => {
             const x = (tick / sequenceLength) * svgWidth;
             return (
               <g key={tick}>
-                <line x1={x} y1={0} x2={x} y2={5} stroke="#4b5563" strokeWidth={1} />
-                <text x={x} y={16} textAnchor="middle" fontSize={9} fill="#6b7280">
+                <line x1={x} y1={0} x2={x} y2={5} stroke="#e2e8f0" strokeWidth={1} />
+                <text x={x} y={16} textAnchor="middle" fontSize={9} fill="#94a3b8">
                   {tick}
                 </text>
               </g>

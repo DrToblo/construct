@@ -5,8 +5,8 @@ export function LoadingSpinner({ size = 24 }: { size?: number }) {
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      className="animate-spin text-blue-400"
-      style={{ color: '#60a5fa' }}
+      className="animate-spin text-blue-600"
+      style={{ color: '#2563eb' }}
     >
       <circle
         cx="12"

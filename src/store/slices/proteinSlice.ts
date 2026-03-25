@@ -12,18 +12,21 @@ export interface ProteinSlice {
   uniprotId: string | null;
   proteinData: ProteinData | null;
   domains: Domain[];
+  selectedDomainSources: string[];
   structureUrl: string | null;
   structureSource: StructureSource;
   status: LoadStatus;
   error: string | null;
   loadProtein: (id: string) => Promise<void>;
   clearProtein: () => void;
+  setSelectedDomainSources: (sources: string[]) => void;
 }
 
 export const createProteinSlice: StateCreator<ProteinSlice> = (set) => ({
   uniprotId: null,
   proteinData: null,
   domains: [],
+  selectedDomainSources: ['Pfam'],
   structureUrl: null,
   structureSource: null,
   status: 'idle',
@@ -34,11 +37,14 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set) => ({
       uniprotId: null,
       proteinData: null,
       domains: [],
+      selectedDomainSources: ['Pfam'],
       structureUrl: null,
       structureSource: null,
       status: 'idle',
       error: null,
     }),
+
+  setSelectedDomainSources: (sources) => set({ selectedDomainSources: sources }),
 
   loadProtein: async (id: string) => {
     const cleanId = id.trim().toUpperCase();

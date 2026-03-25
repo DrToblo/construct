@@ -16,7 +16,10 @@ export default defineConfig({
     format: 'es',
   },
   optimizeDeps: {
-    exclude: ['molstar'],
+    include: ['molstar'],
+    rolldownOptions: {
+      output: { format: 'es' },
+    },
   },
   css: {
     preprocessorOptions: {

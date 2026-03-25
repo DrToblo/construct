@@ -44,7 +44,7 @@ export function DomainTrack({
         x={4}
         y={y + trackHeight / 2 + 4}
         fontSize={10}
-        fill="#6b7280"
+        fill="#94a3b8"
         fontFamily="monospace"
       >
         {sourceDatabase}
@@ -56,7 +56,7 @@ export function DomainTrack({
         y1={y + trackHeight / 2}
         x2={svgWidth}
         y2={y + trackHeight / 2}
-        stroke="#374151"
+        stroke="#e2e8f0"
         strokeWidth={1}
       />
 

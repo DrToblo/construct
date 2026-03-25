@@ -50,6 +50,7 @@ export function SequenceViewer({ protein }: SequenceViewerProps) {
         overflowY: 'auto',
         padding: '8px 12px',
         fontFamily: 'monospace',
+        background: '#ffffff',
       }}
     >
       {rows.map((row, rowIdx) => {
@@ -68,7 +69,7 @@ export function SequenceViewer({ protein }: SequenceViewerProps) {
                   <span
                     style={{
                       fontSize: 9,
-                      color: '#6b7280',
+                      color: '#94a3b8',
                       marginBottom: 1,
                       minWidth: groupIndices.length * 16,
                     }}
@@ -106,8 +107,8 @@ export function SequenceViewer({ protein }: SequenceViewerProps) {
 
       {/* PTM legend */}
       {protein.ptms.length > 0 && (
-        <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid #374151', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 10, color: '#6b7280' }}>PTMs:</span>
+        <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid #e2e8f0', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 10, color: '#94a3b8' }}>PTMs:</span>
           <span style={{ fontSize: 10, color: '#f97316' }}>● Phosphorylation</span>
           <span style={{ fontSize: 10, color: '#ef4444' }}>● Disulfide</span>
           <span style={{ fontSize: 10, color: '#3b82f6' }}>● Glycosylation</span>

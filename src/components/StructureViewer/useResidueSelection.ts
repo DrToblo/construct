@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { skip } from 'rxjs';
 import type { MolstarHandle } from '../../types/plugins';
 import type { SelectionStep } from '../../types/construct';
 
@@ -17,34 +18,31 @@ export function useResidueSelection({
     if (!handle?.plugin) return;
     const plugin = handle.plugin;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sub = plugin.behaviors.interaction.click.subscribe(async (_event: any) => {
+    // skip(1) avoids replaying the BehaviorSubject's last value on re-subscribe
+    // (which would immediately re-fire the previous click when selectionStep changes to 'selectingEnd')
+    const sub = plugin.behaviors.interaction.click.pipe(skip(1)).subscribe(async (event: any) => {
       if (selectionStep === 'none' || selectionStep === 'complete') return;
 
-      // Give Mol* time to update its selection state
-      await new Promise<void>((r) => setTimeout(r, 50));
+      const loci = event?.current?.loci;
+      if (!loci) return;
 
       try {
-        const { StructureProperties } = await import('molstar/lib/mol-model/structure');
-        const { Structure } = await import('molstar/lib/mol-model/structure');
+        const { StructureElement, StructureProperties } = await import('molstar/lib/mol-model/structure');
+        const { OrderedSet } = await import('molstar/lib/mol-data/int');
 
-        // Iterate over current selection to find the clicked residue
-        const sel = plugin.managers.structure.selection;
+        if (!StructureElement.Loci.is(loci)) return;
+
+        const loc = StructureElement.Location.create(loci.structure);
         let found: number | null = null;
 
-        for (const [, entry] of sel.entries) {
+        for (const e of loci.elements) {
           if (found !== null) break;
-          const struct = entry.structure;
-          if (!struct) continue;
-
-          Structure.eachAtomicHierarchyElement(struct, {
-            residue: (loc) => {
-              if (found !== null) return;
-              const seqId = StructureProperties.residue.label_seq_id(loc);
-              if (seqId > 0) {
-                found = seqId;
-              }
-            },
+          OrderedSet.forEach(e.indices, (i: number) => {
+            if (found !== null) return;
+            loc.unit = e.unit;
+            loc.element = e.unit.elements[i];
+            const seqId = StructureProperties.residue.label_seq_id(loc);
+            if (seqId > 0) found = seqId;
           });
         }
 

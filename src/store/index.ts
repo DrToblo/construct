@@ -17,6 +17,8 @@ export const useProteinStore = () =>
     uniprotId: s.uniprotId,
     proteinData: s.proteinData,
     domains: s.domains,
+    selectedDomainSources: s.selectedDomainSources,
+    setSelectedDomainSources: s.setSelectedDomainSources,
     structureUrl: s.structureUrl,
     structureSource: s.structureSource,
     status: s.status,

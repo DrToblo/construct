@@ -8,14 +8,14 @@ export function ErrorBanner({ message, onDismiss }: ErrorBannerProps) {
     <div
       role="alert"
       style={{
-        background: '#450a0a',
-        border: '1px solid #b91c1c',
+        background: '#fef2f2',
+        border: '1px solid #fecaca',
         borderRadius: '8px',
         padding: '12px 16px',
         display: 'flex',
         alignItems: 'center',
         gap: '12px',
-        color: '#fca5a5',
+        color: '#991b1b',
         fontSize: '14px',
       }}
     >
@@ -26,7 +26,7 @@ export function ErrorBanner({ message, onDismiss }: ErrorBannerProps) {
           style={{
             background: 'none',
             border: 'none',
-            color: '#fca5a5',
+            color: '#ef4444',
             cursor: 'pointer',
             fontSize: '18px',
             lineHeight: 1,

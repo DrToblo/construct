@@ -6,17 +6,18 @@ import { SequenceViewer } from './components/SequenceViewer/SequenceViewer';
 import { AnalysisPanel } from './components/AnalysisPanel/AnalysisPanel';
 import { ErrorBanner } from './components/ui/ErrorBanner';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
+import { HamburgerMenu } from './components/ui/HamburgerMenu';
 
 const PANEL_HEADER: React.CSSProperties = {
   padding: '6px 12px',
-  borderBottom: '1px solid #1f2937',
+  borderBottom: '1px solid #e2e8f0',
   fontSize: 11,
   fontWeight: 700,
-  color: '#6b7280',
+  color: '#64748b',
   textTransform: 'uppercase',
   letterSpacing: '0.07em',
   flexShrink: 0,
-  background: '#111827',
+  background: '#f1f5f9',
 };
 
 export default function App() {
@@ -32,8 +33,8 @@ export default function App() {
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        background: '#0f1117',
-        color: '#e2e8f0',
+        background: '#f8fafc',
+        color: '#0f172a',
         overflow: 'hidden',
       }}
     >
@@ -44,21 +45,23 @@ export default function App() {
           alignItems: 'center',
           padding: '0 20px',
           height: 44,
-          borderBottom: '1px solid #1f2937',
+          borderBottom: '1px solid #e2e8f0',
           flexShrink: 0,
           gap: 14,
-          background: '#0a0d14',
+          background: '#ffffff',
         }}
       >
-        <span style={{ fontSize: 15, fontWeight: 800, color: '#60a5fa', letterSpacing: '-0.03em' }}>
+        <span style={{ fontSize: 15, fontWeight: 800, color: '#2563eb', letterSpacing: '-0.03em' }}>
           Construct Designer
         </span>
         {proteinData && (
-          <span style={{ fontSize: 12, color: '#4b5563' }}>
-            {proteinData.name} · <em style={{ fontStyle: 'normal', color: '#6b7280' }}>{proteinData.organism}</em>
+          <span style={{ fontSize: 12, color: '#64748b' }}>
+            {proteinData.name} · <em style={{ fontStyle: 'normal', color: '#94a3b8' }}>{proteinData.organism}</em>
             {' '}· {proteinData.sequence.length} aa
           </span>
         )}
+        <div style={{ flex: 1 }} />
+        <HamburgerMenu />
       </header>
 
       {/* Search */}
@@ -82,7 +85,7 @@ export default function App() {
             alignItems: 'center',
             justifyContent: 'center',
             gap: 12,
-            color: '#6b7280',
+            color: '#64748b',
           }}
         >
           <LoadingSpinner size={28} />
@@ -104,8 +107,8 @@ export default function App() {
           }}
         >
           <div style={{ fontSize: 52, lineHeight: 1 }}>🧬</div>
-          <p style={{ fontSize: 15, margin: 0, color: '#6b7280' }}>Enter a UniProt ID above to begin</p>
-          <p style={{ fontSize: 12, margin: 0, color: '#374151' }}>Try P04637 · P01308 · P00533</p>
+          <p style={{ fontSize: 15, margin: 0, color: '#64748b' }}>Enter a UniProt ID above to begin</p>
+          <p style={{ fontSize: 12, margin: 0, color: '#94a3b8' }}>Try P04637 · P01308 · P00533</p>
         </div>
       )}
 
@@ -114,7 +117,7 @@ export default function App() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* Domain diagram strip */}
-          <div style={{ flexShrink: 0, borderBottom: '1px solid #1f2937', maxHeight: 180, overflow: 'hidden' }}>
+          <div style={{ flexShrink: 0, borderBottom: '1px solid #e2e8f0', maxHeight: 180, overflow: 'hidden' }}>
             <div style={PANEL_HEADER}>Domain Annotations ({domains.length} entries · {proteinData.uniprotId})</div>
             <DomainDiagram domains={domains} sequenceLength={proteinData.sequence.length} />
           </div>
@@ -123,7 +126,7 @@ export default function App() {
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
             {/* 3D Viewer (~60%) */}
-            <div style={{ flex: '0 0 60%', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1f2937', overflow: 'hidden' }}>
+            <div style={{ flex: '0 0 60%', display: 'flex', flexDirection: 'column', borderRight: '1px solid #e2e8f0', overflow: 'hidden' }}>
               <div style={PANEL_HEADER}>3D Structure (Mol*)</div>
               <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
                 <StructureViewer />
@@ -134,7 +137,7 @@ export default function App() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
               {/* Sequence viewer (~40% of right) */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderBottom: '1px solid #1f2937' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderBottom: '1px solid #e2e8f0' }}>
                 <div style={PANEL_HEADER}>Sequence</div>
                 <div style={{ flex: 1, overflow: 'auto' }}>
                   <SequenceViewer protein={proteinData} />

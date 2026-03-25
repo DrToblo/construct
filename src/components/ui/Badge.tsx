@@ -4,7 +4,7 @@ interface BadgeProps {
   background?: string;
 }
 
-export function Badge({ label, color = '#e2e8f0', background = '#374151' }: BadgeProps) {
+export function Badge({ label, color = '#334155', background = '#e2e8f0' }: BadgeProps) {
   return (
     <span
       style={{

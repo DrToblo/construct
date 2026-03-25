@@ -31,10 +31,17 @@ export function useMolstar(
         const { createPluginUI } = await import('molstar/lib/mol-plugin-ui');
         const { renderReact18 } = await import('molstar/lib/mol-plugin-ui/react18');
         const { DefaultPluginUISpec } = await import('molstar/lib/mol-plugin-ui/spec');
-
         if (cancelled) return;
 
         const spec = DefaultPluginUISpec();
+        // Remove camera-focus-loci so clicking a residue doesn't auto-zoom the camera
+        spec.behaviors = (spec.behaviors ?? []).filter(
+          (b) => b?.transformer?.id !== 'camera-focus-loci',
+        );
+        spec.canvas3d = {
+          cameraClipping: { far: false, radius: 100, minNear: 0.1 },
+          sceneRadiusFactor: 2,
+        };
         spec.layout = {
           initial: {
             isExpanded: false,

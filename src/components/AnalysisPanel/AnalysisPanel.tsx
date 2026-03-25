@@ -24,14 +24,14 @@ export function AnalysisPanel({ protein }: AnalysisPanelProps) {
   const activePlugins = ANALYSIS_PLUGINS.filter((p) => activeIds.includes(p.id));
 
   return (
-    <div style={{ width: '100%', height: '100%', overflowY: 'auto' }}>
+    <div style={{ width: '100%', height: '100%', overflowY: 'auto', background: '#ffffff' }}>
       {startResidue != null && endResidue != null && (
         <div style={{
           padding: '6px 14px',
-          background: '#14532d',
-          borderBottom: '1px solid #16a34a',
+          background: '#eff6ff',
+          borderBottom: '1px solid #dbeafe',
           fontSize: 12,
-          color: '#86efac',
+          color: '#2563eb',
           fontWeight: 600,
         }}>
           Analyzing construct residues {startResidue}–{endResidue} ({constructSequence.length} aa)
@@ -40,12 +40,12 @@ export function AnalysisPanel({ protein }: AnalysisPanelProps) {
       {activePlugins.map((plugin) => {
         const result = plugin.analyze(constructSequence, protein, construct);
         return (
-          <div key={plugin.id} style={{ borderBottom: '1px solid #1f2937' }}>
+          <div key={plugin.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
             <div style={{
               padding: '6px 14px 4px',
               fontSize: 11,
               fontWeight: 700,
-              color: '#6b7280',
+              color: '#94a3b8',
               textTransform: 'uppercase',
               letterSpacing: '0.06em',
             }}>

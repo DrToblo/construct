@@ -29,7 +29,7 @@ export function SearchBar() {
   }
 
   return (
-    <div style={{ padding: '16px 24px', borderBottom: '1px solid #374151' }}>
+    <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
       <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
           <input
@@ -41,10 +41,10 @@ export function SearchBar() {
             style={{
               width: '100%',
               padding: '8px 12px',
-              background: '#1f2937',
-              border: '1px solid #374151',
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
               borderRadius: '6px',
-              color: '#e2e8f0',
+              color: '#0f172a',
               fontSize: '14px',
               outline: 'none',
               boxSizing: 'border-box',
@@ -56,7 +56,7 @@ export function SearchBar() {
           disabled={loading || !input.trim()}
           style={{
             padding: '8px 16px',
-            background: loading ? '#374151' : '#3b82f6',
+            background: loading ? '#e2e8f0' : '#2563eb',
             color: '#fff',
             border: 'none',
             borderRadius: '6px',
@@ -73,7 +73,7 @@ export function SearchBar() {
         </button>
       </form>
       <div style={{ display: 'flex', gap: '6px', marginTop: '8px', alignItems: 'center' }}>
-        <span style={{ fontSize: '12px', color: '#6b7280' }}>Examples:</span>
+        <span style={{ fontSize: '12px', color: '#64748b' }}>Examples:</span>
         {EXAMPLES.map((id) => (
           <button
             key={id}
@@ -81,10 +81,10 @@ export function SearchBar() {
             disabled={loading}
             style={{
               padding: '2px 8px',
-              background: '#1f2937',
-              border: '1px solid #374151',
+              background: '#f1f5f9',
+              border: '1px solid #e2e8f0',
               borderRadius: '4px',
-              color: '#93c5fd',
+              color: '#2563eb',
               cursor: 'pointer',
               fontSize: '12px',
               fontFamily: 'monospace',

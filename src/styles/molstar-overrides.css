@@ -15,7 +15,7 @@
   display: block;
 }
 
-/* Override Mol* default background to match dark theme */
+/* Override Mol* default background to match light theme */
 .molstar-container .msp-plugin {
-  background-color: #1a1d27 !important;
+  background-color: #f8fafc !important;
 }

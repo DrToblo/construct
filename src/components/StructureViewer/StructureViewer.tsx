@@ -72,15 +72,16 @@ export function StructureViewer() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 20,
-            background: '#854d0e',
-            border: '1px solid #ca8a04',
+            background: '#fefce8',
+            border: '1px solid #fef08a',
             borderRadius: '6px',
             padding: '6px 14px',
-            color: '#fef08a',
+            color: '#854d0e',
             fontSize: '13px',
             fontWeight: 600,
             pointerEvents: 'none',
             whiteSpace: 'nowrap',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           }}
         >
           {bannerText}
@@ -95,12 +96,13 @@ export function StructureViewer() {
             bottom: '48px',
             left: '8px',
             zIndex: 20,
-            background: '#1c1917',
-            border: '1px solid #78716c',
+            background: '#f5f5f4',
+            border: '1px solid #e7e5e4',
             borderRadius: '6px',
             padding: '4px 10px',
-            color: '#a8a29e',
+            color: '#78716c',
             fontSize: '11px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
           }}
         >
           Using RCSB PDB structure (residue numbering may differ from UniProt)
@@ -119,11 +121,11 @@ export function StructureViewer() {
         }}
       >
         {selectionStep === 'none' || selectionStep === 'complete' ? (
-          <button onClick={beginSelection} style={toolbarBtnStyle('#1d4ed8')}>
+          <button onClick={beginSelection} style={toolbarBtnStyle('#2563eb')}>
             {selectionStep === 'complete' ? 'Reselect Construct' : 'Select Construct'}
           </button>
         ) : (
-          <button onClick={resetSelection} style={toolbarBtnStyle('#7f1d1d')}>
+          <button onClick={resetSelection} style={toolbarBtnStyle('#dc2626')}>
             Cancel
           </button>
         )}
@@ -131,10 +133,10 @@ export function StructureViewer() {
           <span
             style={{
               padding: '5px 10px',
-              background: '#14532d',
-              border: '1px solid #16a34a',
+              background: '#eff6ff',
+              border: '1px solid #dbeafe',
               borderRadius: '5px',
-              color: '#86efac',
+              color: '#2563eb',
               fontSize: '12px',
               fontWeight: 600,
             }}

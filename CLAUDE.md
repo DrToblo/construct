@@ -161,9 +161,27 @@ activeAnalysisPluginIds: string[]
 
 ---
 
+## Molstar API notes
+
+Molstar's internal APIs are poorly documented. These are the patterns confirmed to work:
+
+| Task | Correct API |
+|---|---|
+| Load structure | `plugin.builders.data.download()` → `parseTrajectory()` → `hierarchy.applyPreset()` |
+| Color specific residues | `setStructureOverpaint(plugin, components, Color, lociGetter)` from `molstar/lib/mol-plugin-state/helpers/structure-overpaint` |
+| Clear residue color | `clearStructureOverpaint(plugin, components)` from same module |
+| Build residue selection | `Script.getStructureSelection(expression, structure)` from `molstar/lib/mol-script/script` |
+| Expression → Loci | `StructureSelection.toLociWithSourceUnits(sel)` from `molstar/lib/mol-model/structure/query` |
+| Color a theme on existing repr | `plugin.state.data.build().to(repr.cell).update(registry.get('cartoon'), old => ({ ...old, colorTheme: ... }))` |
+
+**Do NOT use** `plugin.managers.structure.component.add()` for coloring — the params shape it expects does not match the TypeScript types and silently does nothing.
+
+---
+
 ## Notes / quirks
 
-- **DomainTrack label positioning**: track labels render at `x=4` inside the `translate(LABEL_WIDTH, 0)` group, so they sit just inside the track area rather than the reserved 60px label zone. Minor visual quirk, not a bug that affects functionality.
-- **Structure plugin wiring**: `plddtColorPlugin` and `ptmOverlayPlugin` exist in the registry but are not reactively applied (no `useEffect` in StructureViewer connects them). Only `constructHighlightPlugin` is live.
-- **RCSB structures**: residue numbering may differ from UniProt; a warning banner appears in the viewer when source is RCSB.
-- **vite.config.ts**: has a pre-existing TypeScript error (`format` option type mismatch). Does not affect runtime or `npm run dev`.
+- **DomainTrack label positioning**: track labels render at `x=4` inside the `translate(LABEL_WIDTH, 0)` group, so they appear just inside the track area rather than the 60px label zone. Minor visual quirk, not a functional bug.
+- **Structure plugin wiring**: `plddtColorPlugin` and `ptmOverlayPlugin` exist in the registry but are not reactively applied — no `useEffect` in `StructureViewer.tsx` connects them. Only `constructHighlightPlugin` is live. To wire another plugin, follow the same `useEffect` pattern in `StructureViewer.tsx`.
+- **ResidueToken / PTMMarker**: these components still exist in `SequenceViewer/` but are no longer used. The sequence viewer was rewritten as a single flat SVG-style div layout.
+- **RCSB structures**: residue numbering may differ from UniProt sequence numbering; a warning banner appears in the structure viewer when source is RCSB.
+- **vite.config.ts**: pre-existing TypeScript error (`format` option type mismatch). Does not affect `npm run dev` or runtime behaviour.

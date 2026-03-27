@@ -1,14 +1,30 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { ProteinData } from '../../types/protein';
+import { PTMType } from '../../types/protein';
 import { useStore } from '../../store';
-import { ResidueToken } from './ResidueToken';
 
 interface SequenceViewerProps {
   protein: ProteinData;
 }
 
-const RESIDUES_PER_ROW = 50;
-const CHUNK = 10; // spacing between position labels
+const CHAR_W = 9;   // px per residue column
+const SEQ_H = 18;   // height of sequence letter row
+const PTM_H = 10;   // height of PTM dot row above sequence
+const TICK_H = 14;  // height of tick + number row below sequence
+const TOTAL_H = PTM_H + SEQ_H + TICK_H;
+
+const PTM_COLORS: Record<string, string> = {
+  [PTMType.PHOSPHORYLATION]: '#f97316',
+  [PTMType.DISULFIDE]: '#ef4444',
+  [PTMType.GLYCOSYLATION]: '#3b82f6',
+  [PTMType.OTHER]: '#8b5cf6',
+};
+
+function tickInterval(len: number): number {
+  if (len <= 100) return 10;
+  if (len <= 500) return 50;
+  return 100;
+}
 
 export function SequenceViewer({ protein }: SequenceViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -16,104 +32,178 @@ export function SequenceViewer({ protein }: SequenceViewerProps) {
   const endResidue = useStore((s) => s.endResidue);
 
   const { sequence, ptms } = protein;
+  const len = sequence.length;
+  const totalWidth = len * CHAR_W;
+  const interval = tickInterval(len);
 
-  // Build a PTM lookup: position → PTM[]
+  // PTM lookup: position → first PTM type
   const ptmMap = useMemo(() => {
-    const map = new Map<number, typeof ptms>();
+    const map = new Map<number, string>();
     for (const ptm of ptms) {
-      if (!map.has(ptm.position)) map.set(ptm.position, []);
-      map.get(ptm.position)!.push(ptm);
+      if (!map.has(ptm.position)) map.set(ptm.position, ptm.type);
     }
     return map;
   }, [ptms]);
 
-  // Auto-scroll to start residue when construct selection completes
+  // PTM tooltip lookup: position → description
+  const ptmDesc = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const ptm of ptms) {
+      map.set(ptm.position, [map.get(ptm.position), `${ptm.type}: ${ptm.description}`].filter(Boolean).join('; '));
+    }
+    return map;
+  }, [ptms]);
+
+  // Auto-scroll so selection start is roughly centered
   useEffect(() => {
-    if (startResidue == null) return;
-    const el = document.getElementById(`residue-${startResidue}`);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (startResidue == null || !containerRef.current) return;
+    const targetX = (startResidue - 1) * CHAR_W;
+    const viewW = containerRef.current.clientWidth;
+    containerRef.current.scrollLeft = Math.max(0, targetX - viewW / 3);
   }, [startResidue]);
 
-  const rows: number[][] = [];
-  for (let i = 0; i < sequence.length; i += RESIDUES_PER_ROW) {
-    rows.push(
-      Array.from({ length: Math.min(RESIDUES_PER_ROW, sequence.length - i) }, (_, j) => i + j),
-    );
-  }
+  // Tick positions: always include 1, then multiples of interval
+  const ticks: number[] = [1];
+  for (let t = interval; t <= len; t += interval) ticks.push(t);
+
+  const hasConstruct = startResidue != null && endResidue != null;
 
   return (
     <div
       ref={containerRef}
       style={{
-        width: '100%',
-        height: '100%',
-        overflowY: 'auto',
-        padding: '8px 12px',
-        fontFamily: 'monospace',
+        overflowX: 'auto',
+        overflowY: 'hidden',
         background: '#ffffff',
+        padding: '6px 12px',
+        height: TOTAL_H + 12,
       }}
     >
-      {rows.map((row, rowIdx) => {
-        const rowStart = rowIdx * RESIDUES_PER_ROW; // 0-based index of first residue in row
-        return (
-          <div key={rowIdx} style={{ display: 'flex', alignItems: 'flex-end', marginBottom: 4, flexWrap: 'wrap' }}>
-            {/* Row groups of CHUNK */}
-            {Array.from({ length: Math.ceil(row.length / CHUNK) }, (_, gi) => {
-              const groupStart = gi * CHUNK;
-              const groupIndices = row.slice(groupStart, groupStart + CHUNK);
-              const firstPos = rowStart + groupStart + 1; // 1-based
+      <div
+        style={{
+          position: 'relative',
+          width: totalWidth,
+          height: TOTAL_H,
+          fontFamily: 'monospace',
+          flexShrink: 0,
+        }}
+      >
+        {/* Construct selection highlight band */}
+        {hasConstruct && (
+          <div
+            style={{
+              position: 'absolute',
+              left: (startResidue! - 1) * CHAR_W,
+              width: (endResidue! - startResidue! + 1) * CHAR_W,
+              top: PTM_H,
+              height: SEQ_H,
+              background: 'rgba(234, 88, 12, 0.18)',
+              borderLeft: '2px solid #ea580c',
+              borderRight: '2px solid #ea580c',
+              borderRadius: 2,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
 
-              return (
-                <div key={gi} style={{ display: 'flex', flexDirection: 'column', marginRight: 8, marginBottom: 4 }}>
-                  {/* Position label */}
-                  <span
-                    style={{
-                      fontSize: 9,
-                      color: '#94a3b8',
-                      marginBottom: 1,
-                      minWidth: groupIndices.length * 16,
-                    }}
-                  >
-                    {firstPos}
-                  </span>
-                  {/* Residues */}
-                  <div style={{ display: 'flex' }}>
-                    {groupIndices.map((idx) => {
-                      const pos = idx + 1; // 1-based
-                      const residue = sequence.value[idx];
-                      const inConstruct =
-                        startResidue != null &&
-                        endResidue != null &&
-                        pos >= startResidue &&
-                        pos <= endResidue;
-                      const residuePtms = ptmMap.get(pos) ?? [];
-                      return (
-                        <ResidueToken
-                          key={pos}
-                          residue={residue}
-                          position={pos}
-                          isInConstruct={inConstruct}
-                          ptms={residuePtms}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        );
-      })}
+        {/* PTM dots row */}
+        {ptms.map((ptm, i) => {
+          const color = PTM_COLORS[ptm.type] ?? '#8b5cf6';
+          const cx = (ptm.position - 1) * CHAR_W + CHAR_W / 2;
+          return (
+            <div
+              key={i}
+              title={ptmDesc.get(ptm.position)}
+              style={{
+                position: 'absolute',
+                left: cx - 3.5,
+                top: 1,
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: color,
+                cursor: 'help',
+                zIndex: 2,
+              }}
+            />
+          );
+        })}
 
-      {/* PTM legend */}
-      {protein.ptms.length > 0 && (
-        <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid #e2e8f0', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 10, color: '#94a3b8' }}>PTMs:</span>
-          <span style={{ fontSize: 10, color: '#f97316' }}>● Phosphorylation</span>
-          <span style={{ fontSize: 10, color: '#ef4444' }}>● Disulfide</span>
-          <span style={{ fontSize: 10, color: '#3b82f6' }}>● Glycosylation</span>
+        {/* Sequence letters */}
+        <div
+          style={{
+            position: 'absolute',
+            top: PTM_H,
+            left: 0,
+            height: SEQ_H,
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          {Array.from(sequence.value).map((aa, idx) => {
+            const pos = idx + 1;
+            const inConstruct = hasConstruct && pos >= startResidue! && pos <= endResidue!;
+            const hasPtm = ptmMap.has(pos);
+            return (
+              <span
+                key={pos}
+                id={`residue-${pos}`}
+                title={`${aa}${pos}${hasPtm ? ' · ' + ptmDesc.get(pos) : ''}`}
+                style={{
+                  display: 'inline-block',
+                  width: CHAR_W,
+                  textAlign: 'center',
+                  fontSize: 11,
+                  lineHeight: `${SEQ_H}px`,
+                  fontWeight: inConstruct ? 700 : 400,
+                  color: inConstruct ? '#c2410c' : hasPtm ? '#475569' : '#334155',
+                  flexShrink: 0,
+                  cursor: 'default',
+                  userSelect: 'none',
+                }}
+              >
+                {aa}
+              </span>
+            );
+          })}
         </div>
-      )}
+
+        {/* Tick marks and position labels */}
+        <div style={{ position: 'absolute', top: PTM_H + SEQ_H, left: 0, height: TICK_H }}>
+          {ticks.map((pos) => {
+            const left = (pos - 1) * CHAR_W + CHAR_W / 2;
+            return (
+              <div key={pos} style={{ position: 'absolute', left }}>
+                {/* Tick mark */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: -0.5,
+                    top: 0,
+                    width: 1,
+                    height: 4,
+                    background: '#cbd5e1',
+                  }}
+                />
+                {/* Label */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    fontSize: 8,
+                    color: '#94a3b8',
+                    whiteSpace: 'nowrap',
+                    transform: 'translateX(-50%)',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {pos}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

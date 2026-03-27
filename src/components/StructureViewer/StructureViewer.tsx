@@ -3,6 +3,7 @@ import { useStore } from '../../store';
 import { useMolstar } from './useMolstar';
 import { useResidueSelection } from './useResidueSelection';
 import type { MolstarHandle } from '../../types/plugins';
+import { constructHighlightPlugin } from '../../plugins/structure/constructHighlightPlugin';
 import '../../styles/molstar-overrides.css';
 
 export function StructureViewer() {
@@ -11,6 +12,7 @@ export function StructureViewer() {
 
   const structureUrl = useStore((s) => s.structureUrl);
   const structureSource = useStore((s) => s.structureSource);
+  const proteinData = useStore((s) => s.proteinData);
   const selectionStep = useStore((s) => s.selectionStep);
   const setStartResidue = useStore((s) => s.setStartResidue);
   const setEndResidue = useStore((s) => s.setEndResidue);
@@ -52,6 +54,15 @@ export function StructureViewer() {
     selectionStep,
     onResidueClick: handleResidueClick,
   });
+
+  // Apply/remove construct highlight when selection changes
+  useEffect(() => {
+    if (!molstarHandle || !proteinData || selectionStep !== 'complete' || startResidue == null || endResidue == null) {
+      if (molstarHandle) constructHighlightPlugin.remove(molstarHandle);
+      return;
+    }
+    constructHighlightPlugin.apply(molstarHandle, proteinData, { startResidue, endResidue, selectionStep });
+  }, [molstarHandle, proteinData, selectionStep, startResidue, endResidue]);
 
   function getSelectionBannerText() {
     if (selectionStep === 'selectingStart') return 'Click a residue in the viewer to set the START of your construct';

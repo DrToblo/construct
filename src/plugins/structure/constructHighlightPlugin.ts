@@ -2,12 +2,10 @@ import type { StructurePlugin, MolstarHandle } from '../../types/plugins';
 import type { ProteinData } from '../../types/protein';
 import type { ConstructSelection } from '../../types/construct';
 
-const REPR_TAG = 'construct-highlight-repr';
-
 export const constructHighlightPlugin: StructurePlugin = {
   id: 'construct-highlight',
   name: 'Construct Range',
-  description: 'Highlights selected construct range in green',
+  description: 'Highlights selected construct range in orange',
 
   async apply(handle: MolstarHandle, _protein: ProteinData, construct: ConstructSelection) {
     const { plugin } = handle;
@@ -18,11 +16,14 @@ export const constructHighlightPlugin: StructurePlugin = {
 
     try {
       const { MolScriptBuilder: MS } = await import('molstar/lib/mol-script/language/builder');
+      const { Script } = await import('molstar/lib/mol-script/script');
+      const { StructureSelection } = await import('molstar/lib/mol-model/structure/query');
+      const { Color } = await import('molstar/lib/mol-util/color');
+      const { setStructureOverpaint } = await import('molstar/lib/mol-plugin-state/helpers/structure-overpaint');
 
-      // Remove previous highlight repr
+      // Clear any previous overpaint first
       await this.remove(handle);
 
-      // Build a selection expression for residues in range
       const expression = MS.struct.modifier.union([
         MS.struct.generator.atomGroups({
           'residue-test': MS.core.rel.inRange([
@@ -33,17 +34,20 @@ export const constructHighlightPlugin: StructurePlugin = {
         }),
       ]);
 
-      // Create a representation component for persistent green coloring
-      await plugin.managers.structure.component.add(
-        {
-          selection: { kind: 'expression', expression },
-          representation: 'ball-and-stick',
-          options: {
-            label: REPR_TAG,
-            colorTheme: { name: 'uniform', params: { value: { r: 0, g: 200, b: 0 } } },
-          },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any,
+      const structures = plugin.managers.structure.hierarchy.current.structures;
+      if (!structures.length) return;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allComponents = structures.flatMap((s: any) => s.components);
+
+      await setStructureOverpaint(
+        plugin,
+        allComponents,
+        Color.fromRgb(234, 88, 12), // orange, matching the sequence highlight
+        async (structure) => {
+          const sel = Script.getStructureSelection(expression, structure);
+          return StructureSelection.toLociWithSourceUnits(sel);
+        },
       );
     } catch (err) {
       console.warn('constructHighlightPlugin.apply failed:', err);
@@ -54,15 +58,11 @@ export const constructHighlightPlugin: StructurePlugin = {
     const { plugin } = handle;
     if (!plugin) return;
     try {
-      plugin.managers.interactivity.lociHighlights.clearHighlights();
-      // Remove any previously added component with our tag
-      for (const struct of plugin.managers.structure.hierarchy.current.structures) {
-        for (const comp of struct.components) {
-          if ((comp.cell.transform.params as { label?: string })?.label === REPR_TAG) {
-            await plugin.managers.structure.component.remove(comp.cell.transform.ref);
-          }
-        }
-      }
+      const { clearStructureOverpaint } = await import('molstar/lib/mol-plugin-state/helpers/structure-overpaint');
+      const structures = plugin.managers.structure.hierarchy.current.structures;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allComponents = structures.flatMap((s: any) => s.components);
+      await clearStructureOverpaint(plugin, allComponents);
     } catch (_) {
       // ignore — structure may have been cleared
     }

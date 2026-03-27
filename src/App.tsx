@@ -117,42 +117,40 @@ export default function App() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* Domain diagram strip */}
-          <div style={{ flexShrink: 0, borderBottom: '1px solid #e2e8f0', maxHeight: 180, overflow: 'hidden' }}>
+          <div style={{ flexShrink: 0, borderBottom: '1px solid #e2e8f0', maxHeight: 240, overflow: 'auto' }}>
             <div style={PANEL_HEADER}>Domain Annotations ({domains.length} entries · {proteinData.uniprotId})</div>
-            <DomainDiagram domains={domains} sequenceLength={proteinData.sequence.length} />
+            <DomainDiagram
+              domains={domains}
+              sequenceLength={proteinData.sequence.length}
+              ptms={proteinData.ptms}
+            />
+          </div>
+
+          {/* Sequence viewer strip — single line */}
+          <div style={{ flexShrink: 0, borderBottom: '1px solid #e2e8f0', overflow: 'hidden' }}>
+            <div style={PANEL_HEADER}>Sequence</div>
+            <SequenceViewer protein={proteinData} />
           </div>
 
           {/* Content row */}
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-            {/* 3D Viewer (~60%) */}
-            <div style={{ flex: '0 0 60%', display: 'flex', flexDirection: 'column', borderRight: '1px solid #e2e8f0', overflow: 'hidden' }}>
+            {/* 3D Viewer (expanded) */}
+            <div style={{ flex: '0 0 68%', display: 'flex', flexDirection: 'column', borderRight: '1px solid #e2e8f0', overflow: 'hidden' }}>
               <div style={PANEL_HEADER}>3D Structure (Mol*)</div>
               <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
                 <StructureViewer />
               </div>
             </div>
 
-            {/* Right column */}
+            {/* Analysis panel */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-              {/* Sequence viewer (~40% of right) */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderBottom: '1px solid #e2e8f0' }}>
-                <div style={PANEL_HEADER}>Sequence</div>
-                <div style={{ flex: 1, overflow: 'auto' }}>
-                  <SequenceViewer protein={proteinData} />
-                </div>
+              <div style={PANEL_HEADER}>Analysis</div>
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <AnalysisPanel protein={proteinData} />
               </div>
-
-              {/* Analysis panel */}
-              <div style={{ flex: '0 0 auto', maxHeight: '40%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={PANEL_HEADER}>Analysis</div>
-                <div style={{ flex: 1, overflow: 'auto' }}>
-                  <AnalysisPanel protein={proteinData} />
-                </div>
-              </div>
-
             </div>
+
           </div>
         </div>
       )}

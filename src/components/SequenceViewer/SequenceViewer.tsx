@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { ProteinData } from '../../types/protein';
-import { PTMType } from '../../types/protein';
 import { useStore } from '../../store';
+import { PTM_COLOR_HEX } from '../../constants/ptmColors';
 
 interface SequenceViewerProps {
   protein: ProteinData;
@@ -12,13 +12,6 @@ const SEQ_H = 18;   // height of sequence letter row
 const PTM_H = 10;   // height of PTM dot row above sequence
 const TICK_H = 14;  // height of tick + number row below sequence
 const TOTAL_H = PTM_H + SEQ_H + TICK_H;
-
-const PTM_COLORS: Record<string, string> = {
-  [PTMType.PHOSPHORYLATION]: '#f97316',
-  [PTMType.DISULFIDE]: '#ef4444',
-  [PTMType.GLYCOSYLATION]: '#3b82f6',
-  [PTMType.OTHER]: '#8b5cf6',
-};
 
 function tickInterval(len: number): number {
   if (len <= 100) return 10;
@@ -108,7 +101,7 @@ export function SequenceViewer({ protein }: SequenceViewerProps) {
 
         {/* PTM dots row */}
         {ptms.map((ptm, i) => {
-          const color = PTM_COLORS[ptm.type] ?? '#8b5cf6';
+          const color = PTM_COLOR_HEX[ptm.type] ?? '#8b5cf6';
           const cx = (ptm.position - 1) * CHAR_W + CHAR_W / 2;
           return (
             <div

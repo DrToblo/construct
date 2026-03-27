@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../store';
-import { ANALYSIS_PLUGINS } from '../../plugins/analysis/registry';
 import { STRUCTURE_PLUGINS } from '../../plugins/structure/registry';
 
 export function HamburgerMenu() {
@@ -13,8 +12,9 @@ export function HamburgerMenu() {
 
   const activeStructureIds = useStore((s) => s.activeStructurePluginIds);
   const toggleStructurePlugin = useStore((s) => s.toggleStructurePlugin);
-  const activeAnalysisIds = useStore((s) => s.activeAnalysisPluginIds);
-  const toggleAnalysisPlugin = useStore((s) => s.toggleAnalysisPlugin);
+  const pdbEntries = useStore((s) => s.pdbEntries);
+  const showPdbTracks = useStore((s) => s.showPdbTracks);
+  const setShowPdbTracks = useStore((s) => s.setShowPdbTracks);
 
   // Derive unique domain sources from loaded domains
   const availableSources = Array.from(new Set(domains.map((d) => d.sourceDatabase))).sort();
@@ -65,7 +65,7 @@ export function HamburgerMenu() {
           style={{
             position: 'absolute',
             top: '100%',
-            right: 0,
+            left: 0,
             width: '240px',
             background: '#ffffff',
             border: '1px solid #e2e8f0',
@@ -114,6 +114,36 @@ export function HamburgerMenu() {
 
           <div style={{ height: '1px', background: '#e2e8f0', margin: '4px 0 12px' }} />
 
+          {/* PDB Structures */}
+          <div style={{ padding: '0 16px 8px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Experimental Structures
+          </div>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '4px 16px',
+              fontSize: '13px',
+              cursor: pdbEntries.length === 0 ? 'default' : 'pointer',
+              gap: '8px',
+              color: pdbEntries.length === 0 ? '#94a3b8' : '#334155',
+            }}
+            onMouseEnter={(e) => { if (pdbEntries.length > 0) e.currentTarget.style.background = '#f1f5f9'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          >
+            <input
+              type="checkbox"
+              checked={showPdbTracks}
+              disabled={pdbEntries.length === 0}
+              onChange={(e) => setShowPdbTracks(e.target.checked)}
+            />
+            {pdbEntries.length === 0
+              ? 'No PDB structures found'
+              : `Show ${pdbEntries.length} PDB structure${pdbEntries.length !== 1 ? 's' : ''}`}
+          </label>
+
+          <div style={{ height: '1px', background: '#e2e8f0', margin: '4px 0 12px' }} />
+
           {/* Structure Plugins */}
           <div style={{ padding: '0 16px 8px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Structure Visuals
@@ -144,37 +174,6 @@ export function HamburgerMenu() {
             ))}
           </div>
 
-          <div style={{ height: '1px', background: '#e2e8f0', margin: '4px 0 12px' }} />
-
-          {/* Analysis Plugins */}
-          <div style={{ padding: '0 16px 8px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Analysis Tools
-          </div>
-          <div>
-            {ANALYSIS_PLUGINS.map((p) => (
-              <label
-                key={p.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '4px 16px',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  gap: '8px',
-                  color: '#334155',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-              >
-                <input
-                  type="checkbox"
-                  checked={activeAnalysisIds.includes(p.id)}
-                  onChange={() => toggleAnalysisPlugin(p.id)}
-                />
-                {p.name}
-              </label>
-            ))}
-          </div>
         </div>
       )}
     </div>

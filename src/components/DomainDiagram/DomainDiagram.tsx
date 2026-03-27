@@ -1,9 +1,10 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import type { Domain, PTM } from '../../types/protein';
-import { PTMType } from '../../types/protein';
+import type { Domain, PTM, PTMType } from '../../types/protein';
+import { PTM_COLOR_HEX } from '../../constants/ptmColors';
 import { DomainTrack } from './DomainTrack';
 import { ConstructOverlay } from './ConstructOverlay';
 import { DragOverlay } from './DragOverlay';
+import { PdbTrack, pdbTrackHeight } from './PdbTrack';
 import { useStore } from '../../store';
 
 interface DomainDiagramProps {
@@ -18,14 +19,6 @@ const AXIS_HEIGHT = 20;
 const PTM_ROW_HEIGHT = 18;
 const SVG_PADDING = 8;
 
-function ptmColor(type: PTMType): string {
-  switch (type) {
-    case PTMType.PHOSPHORYLATION: return '#3b82f6';
-    case PTMType.DISULFIDE: return '#f59e0b';
-    case PTMType.GLYCOSYLATION: return '#8b5cf6';
-    default: return '#64748b';
-  }
-}
 
 interface DragState {
   start: number;
@@ -45,6 +38,8 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
   const endResidue = useStore((s) => s.endResidue);
   const selectedSources = useStore((s) => s.selectedDomainSources);
   const setRange = useStore((s) => s.setRange);
+  const pdbEntries = useStore((s) => s.pdbEntries);
+  const showPdbTracks = useStore((s) => s.showPdbTracks);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -86,8 +81,11 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
 
   const svgWidth = Math.max(0, containerWidth - LABEL_WIDTH - SVG_PADDING * 2);
   const hasPtms = ptms.length > 0;
+  const showDomainTracks = groups.length > 0;
+  const showPdbSection = showPdbTracks && pdbEntries.length > 0;
   const tracksHeight = groups.length * TRACK_HEIGHT;
-  const svgHeight = tracksHeight + AXIS_HEIGHT + (hasPtms ? PTM_ROW_HEIGHT : 0);
+  const pdbSecHeight = showPdbSection ? pdbTrackHeight(pdbEntries) : 0;
+  const svgHeight = tracksHeight + pdbSecHeight + AXIS_HEIGHT + (hasPtms ? PTM_ROW_HEIGHT : 0);
 
   function clientXToResidue(clientX: number): number {
     const svg = svgRef.current;
@@ -151,18 +149,13 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
   // Hover cursor x position (within tracks group coordinate)
   const hoverX = hoverResidue != null ? (hoverResidue / sequenceLength) * svgWidth : null;
 
-  if (domains.length === 0) {
+  if (!showDomainTracks && !showPdbSection) {
+    const msg = domains.length === 0
+      ? 'No domain annotations found'
+      : 'No sources selected. Use the menu above to enable domain tracks.';
     return (
       <div style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 13, fontStyle: 'italic', background: '#ffffff' }}>
-        No domain annotations found
-      </div>
-    );
-  }
-
-  if (groups.length === 0) {
-    return (
-      <div style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 13, fontStyle: 'italic', background: '#ffffff' }}>
-        No sources selected. Use the menu above to enable domain tracks.
+        {msg}
       </div>
     );
   }
@@ -185,7 +178,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
         onMouseLeave={handleMouseLeave}
       >
         {/* Axis */}
-        <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight})`}>
+        <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + pdbSecHeight})`}>
           <line x1={0} y1={0} x2={svgWidth} y2={0} stroke="#e2e8f0" strokeWidth={1} />
           {axisTicks().map((tick) => {
             const x = (tick / sequenceLength) * svgWidth;
@@ -200,7 +193,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
 
         {/* PTM row */}
         {hasPtms && (
-          <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + AXIS_HEIGHT})`}>
+          <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + pdbSecHeight + AXIS_HEIGHT})`}>
             {/* Row label in the reserved label area */}
             <text
               x={-LABEL_WIDTH + 4}
@@ -216,7 +209,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
             {/* PTM markers */}
             {ptms.map((ptm, i) => {
               const x = (ptm.position / sequenceLength) * svgWidth;
-              const color = ptmColor(ptm.type);
+              const color = PTM_COLOR_HEX[ptm.type] ?? '#8b5cf6';
               const cy = PTM_ROW_HEIGHT / 2;
               const s = 4; // half-size of diamond
               return (
@@ -241,7 +234,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
                 <g key={t} transform={`translate(${svgWidth - types.length * 68 + i * 68}, 0)`}>
                   <polygon
                     points={`${0},${-3} ${4},${PTM_ROW_HEIGHT / 2 - 1} ${0},${PTM_ROW_HEIGHT - 1} ${-4},${PTM_ROW_HEIGHT / 2 - 1}`}
-                    fill={ptmColor(t)}
+                    fill={PTM_COLOR_HEX[t] ?? '#8b5cf6'}
                     fillOpacity={0.85}
                   />
                   <text x={6} y={PTM_ROW_HEIGHT / 2 + 3} fontSize={8} fill="#64748b" fontFamily="monospace">
@@ -326,6 +319,17 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
             </g>
           )}
         </g>
+
+        {/* PDB structures track */}
+        {showPdbSection && (
+          <PdbTrack
+            entries={pdbEntries}
+            sequenceLength={sequenceLength}
+            svgWidth={svgWidth}
+            yOffset={tracksHeight}
+            labelWidth={LABEL_WIDTH}
+          />
+        )}
       </svg>
 
       {/* Interaction hint */}

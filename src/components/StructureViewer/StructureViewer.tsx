@@ -4,6 +4,7 @@ import { useMolstar } from './useMolstar';
 import { useResidueSelection } from './useResidueSelection';
 import type { MolstarHandle } from '../../types/plugins';
 import { constructHighlightPlugin } from '../../plugins/structure/constructHighlightPlugin';
+import { ptmOverlayPlugin } from '../../plugins/structure/ptmOverlayPlugin';
 import '../../styles/molstar-overrides.css';
 
 export function StructureViewer() {
@@ -31,11 +32,31 @@ export function StructureViewer() {
 
   const { loadStructure } = useMolstar(containerRef, handleReady, handleDispose);
 
-  // Load structure when URL changes
+  // Keep a ref to proteinData so the load effect can read it without adding it as a dep
+  const proteinDataRef = useRef(proteinData);
+  proteinDataRef.current = proteinData;
+
+  // Load structure when URL changes, then re-apply overlays
   useEffect(() => {
-    if (structureUrl && molstarHandle) {
-      loadStructure(structureUrl);
-    }
+    if (!structureUrl || !molstarHandle) return;
+    let cancelled = false;
+    loadStructure(structureUrl).then(() => {
+      if (cancelled) return;
+      const pd = proteinDataRef.current;
+      if (!pd) return;
+
+      // Apply PTM overlay
+      if (pd.ptms.length > 0) {
+        ptmOverlayPlugin.apply(molstarHandle, pd, { startResidue: null, endResidue: null, selectionStep: 'none' });
+      }
+
+      // Re-apply construct highlight (needed when switching structures mid-selection)
+      const { selectionStep, startResidue, endResidue } = useStore.getState();
+      if (selectionStep === 'complete' && startResidue != null && endResidue != null) {
+        constructHighlightPlugin.apply(molstarHandle, pd, { startResidue, endResidue, selectionStep });
+      }
+    });
+    return () => { cancelled = true; };
   }, [structureUrl, molstarHandle, loadStructure]);
 
   const handleResidueClick = useCallback(

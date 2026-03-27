@@ -1,9 +1,10 @@
 import type { StateCreator } from 'zustand';
-import type { ProteinData, Domain } from '../../types/protein';
+import type { ProteinData, Domain, PDBEntry } from '../../types/protein';
 import { fetchUniprotEntry } from '../../services/uniprot';
 import { fetchInterproDomains } from '../../services/interpro';
 import { fetchAlphaFoldStructure, AlphaFoldNotFoundError } from '../../services/alphafold';
 import { fetchRcsbByUniprot } from '../../services/rcsb';
+import { fetchPdbEntries } from '../../services/pdbe';
 
 export type LoadStatus = 'idle' | 'loading' | 'error' | 'ready';
 export type StructureSource = 'alphafold' | 'rcsb' | null;
@@ -15,11 +16,21 @@ export interface ProteinSlice {
   selectedDomainSources: string[];
   structureUrl: string | null;
   structureSource: StructureSource;
+  // Default structure (AlphaFold or RCSB fallback) preserved for reverting PDB selection
+  defaultStructureUrl: string | null;
+  defaultStructureSource: StructureSource;
+  // PDB structures
+  pdbEntries: PDBEntry[];
+  showPdbTracks: boolean;
+  activePdbId: string | null;
   status: LoadStatus;
   error: string | null;
   loadProtein: (id: string) => Promise<void>;
   clearProtein: () => void;
   setSelectedDomainSources: (sources: string[]) => void;
+  setShowPdbTracks: (show: boolean) => void;
+  selectPdbEntry: (entry: PDBEntry) => void;
+  clearPdbSelection: () => void;
 }
 
 export const createProteinSlice: StateCreator<ProteinSlice> = (set) => ({
@@ -29,6 +40,11 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set) => ({
   selectedDomainSources: ['Pfam'],
   structureUrl: null,
   structureSource: null,
+  defaultStructureUrl: null,
+  defaultStructureSource: null,
+  pdbEntries: [],
+  showPdbTracks: false,
+  activePdbId: null,
   status: 'idle',
   error: null,
 
@@ -40,17 +56,45 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set) => ({
       selectedDomainSources: ['Pfam'],
       structureUrl: null,
       structureSource: null,
+      defaultStructureUrl: null,
+      defaultStructureSource: null,
+      pdbEntries: [],
+      showPdbTracks: false,
+      activePdbId: null,
       status: 'idle',
       error: null,
     }),
 
   setSelectedDomainSources: (sources) => set({ selectedDomainSources: sources }),
 
+  setShowPdbTracks: (show) => set({ showPdbTracks: show }),
+
+  selectPdbEntry: (entry) =>
+    set({
+      activePdbId: entry.pdbId,
+      structureUrl: entry.cifUrl,
+      structureSource: 'rcsb',
+    }),
+
+  clearPdbSelection: () =>
+    set((state) => ({
+      activePdbId: null,
+      structureUrl: state.defaultStructureUrl,
+      structureSource: state.defaultStructureSource,
+    })),
+
   loadProtein: async (id: string) => {
     const cleanId = id.trim().toUpperCase();
-    set({ status: 'loading', error: null, uniprotId: cleanId });
+    set({
+      status: 'loading',
+      error: null,
+      uniprotId: cleanId,
+      activePdbId: null,
+      pdbEntries: [],
+      showPdbTracks: false,
+    });
 
-    const [uniprotResult, interproResult, structureResult] = await Promise.allSettled([
+    const [uniprotResult, interproResult, structureResult, pdbResult] = await Promise.allSettled([
       fetchUniprotEntry(cleanId),
       fetchInterproDomains(cleanId),
       (async () => {
@@ -65,6 +109,7 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set) => ({
           throw err;
         }
       })(),
+      fetchPdbEntries(cleanId),
     ]);
 
     if (uniprotResult.status === 'rejected') {
@@ -78,7 +123,18 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set) => ({
       structureResult.status === 'fulfilled' ? structureResult.value.url : null;
     const structureSource =
       structureResult.status === 'fulfilled' ? structureResult.value.source : null;
+    const pdbEntries = pdbResult.status === 'fulfilled' ? pdbResult.value : [];
 
-    set({ proteinData, domains, structureUrl, structureSource, status: 'ready', error: null });
+    set({
+      proteinData,
+      domains,
+      structureUrl,
+      structureSource,
+      defaultStructureUrl: structureUrl,
+      defaultStructureSource: structureSource,
+      pdbEntries,
+      status: 'ready',
+      error: null,
+    });
   },
 });

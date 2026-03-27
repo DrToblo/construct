@@ -26,6 +26,9 @@ export function useResidueSelection({
       const loci = event?.current?.loci;
       if (!loci) return;
 
+      // Capture camera state immediately — before Molstar's focus animation starts
+      const cameraSnapshot = plugin.canvas3d?.camera.getSnapshot();
+
       try {
         const { StructureElement, StructureProperties } = await import('molstar/lib/mol-model/structure');
         const { OrderedSet } = await import('molstar/lib/mol-data/int');
@@ -48,6 +51,16 @@ export function useResidueSelection({
 
         if (found !== null) {
           onResidueClick(found);
+
+          // Prevent Molstar from zooming in and showing side chains:
+          // 1. Restore camera to pre-click position (cancels focus animation)
+          if (cameraSnapshot && plugin.canvas3d) {
+            plugin.canvas3d.camera.setState(cameraSnapshot, 0);
+          }
+          // 2. Clear Molstar's internal focus (which triggers side chain display)
+          plugin.managers.structure.focus.clear();
+          // 3. Clear highlight so residue doesn't stay visually selected
+          plugin.managers.interactivity.lociHighlights.clearHighlights();
         }
       } catch (err) {
         console.warn('Residue selection extraction failed:', err);

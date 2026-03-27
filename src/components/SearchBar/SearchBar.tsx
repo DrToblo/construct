@@ -29,64 +29,63 @@ export function SearchBar() {
   }
 
   return (
-    <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="UniProt ID (e.g. P04637)"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              background: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '6px',
-              color: '#0f172a',
-              fontSize: '14px',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
-        </div>
+    <div>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="UniProt ID"
+          disabled={loading}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            padding: '6px 8px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '5px',
+            color: '#0f172a',
+            fontSize: '12px',
+            outline: 'none',
+            boxSizing: 'border-box',
+          }}
+        />
         <button
           type="submit"
           disabled={loading || !input.trim()}
           style={{
-            padding: '8px 16px',
+            padding: '6px 10px',
             background: loading ? '#e2e8f0' : '#2563eb',
             color: '#fff',
             border: 'none',
-            borderRadius: '6px',
+            borderRadius: '5px',
             cursor: loading ? 'not-allowed' : 'pointer',
-            fontSize: '14px',
+            fontSize: '12px',
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '4px',
+            flexShrink: 0,
           }}
         >
-          {loading && <LoadingSpinner size={14} />}
-          {loading ? 'Loading…' : 'Load'}
+          {loading && <LoadingSpinner size={12} />}
+          {loading ? '…' : 'Load'}
         </button>
       </form>
-      <div style={{ display: 'flex', gap: '6px', marginTop: '8px', alignItems: 'center' }}>
-        <span style={{ fontSize: '12px', color: '#64748b' }}>Examples:</span>
+      <div style={{ display: 'flex', gap: '4px', marginTop: '6px', flexWrap: 'wrap' }}>
         {EXAMPLES.map((id) => (
           <button
             key={id}
             onClick={() => loadExample(id)}
             disabled={loading}
             style={{
-              padding: '2px 8px',
+              padding: '1px 6px',
               background: '#f1f5f9',
               border: '1px solid #e2e8f0',
-              borderRadius: '4px',
+              borderRadius: '3px',
               color: '#2563eb',
               cursor: 'pointer',
-              fontSize: '12px',
+              fontSize: '10px',
               fontFamily: 'monospace',
             }}
           >

@@ -34,3 +34,13 @@ export interface Domain {
   start: number; // 1-based
   end: number;   // 1-based
 }
+
+export interface PDBEntry {
+  pdbId: string;
+  chainId: string;
+  uniprotStart: number;  // 1-based, UniProt residue numbering
+  uniprotEnd: number;
+  resolution: number | null;
+  experimentalMethod: string;
+  cifUrl: string;
+}

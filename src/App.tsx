@@ -1,24 +1,15 @@
+import { useMemo } from 'react';
 import { useStore } from './store';
 import { SearchBar } from './components/SearchBar/SearchBar';
 import { DomainDiagram } from './components/DomainDiagram/DomainDiagram';
 import { StructureViewer } from './components/StructureViewer/StructureViewer';
 import { SequenceViewer } from './components/SequenceViewer/SequenceViewer';
-import { AnalysisPanel } from './components/AnalysisPanel/AnalysisPanel';
 import { ErrorBanner } from './components/ui/ErrorBanner';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { HamburgerMenu } from './components/ui/HamburgerMenu';
-
-const PANEL_HEADER: React.CSSProperties = {
-  padding: '6px 12px',
-  borderBottom: '1px solid #e2e8f0',
-  fontSize: 11,
-  fontWeight: 700,
-  color: '#64748b',
-  textTransform: 'uppercase',
-  letterSpacing: '0.07em',
-  flexShrink: 0,
-  background: '#f1f5f9',
-};
+import { mwPlugin } from './plugins/analysis/mwPlugin';
+import { piPlugin } from './plugins/analysis/piPlugin';
+import { PTMType } from './types/protein';
 
 export default function App() {
   const status = useStore((s) => s.status);
@@ -26,134 +17,156 @@ export default function App() {
   const proteinData = useStore((s) => s.proteinData);
   const domains = useStore((s) => s.domains);
   const clearProtein = useStore((s) => s.clearProtein);
+  const startResidue = useStore((s) => s.startResidue);
+  const endResidue = useStore((s) => s.endResidue);
+
+  const constructSequence = useMemo(() => {
+    if (!proteinData) return '';
+    if (startResidue != null && endResidue != null) {
+      return proteinData.sequence.value.slice(startResidue - 1, endResidue);
+    }
+    return proteinData.sequence.value;
+  }, [proteinData, startResidue, endResidue]);
+
+  const construct = useMemo(() => ({
+    startResidue,
+    endResidue,
+    selectionStep: startResidue != null ? 'complete' as const : 'none' as const,
+  }), [startResidue, endResidue]);
+
+  const stats = useMemo(() => {
+    if (!proteinData || !constructSequence) return null;
+    const mwData = mwPlugin.analyze(constructSequence, proteinData, construct).data as { averageMass: number };
+    const piData = piPlugin.analyze(constructSequence, proteinData, construct).data as { pI: number };
+
+    const ssCount = proteinData.ptms.filter((p) => {
+      if (p.type !== PTMType.DISULFIDE) return false;
+      if (startResidue != null && endResidue != null) {
+        return p.position >= startResidue && p.position <= endResidue;
+      }
+      return true;
+    }).length;
+
+    return {
+      mw: mwData.averageMass / 1000,
+      pI: piData.pI,
+      ssBonds: Math.floor(ssCount / 2),
+      residues: constructSequence.length,
+    };
+  }, [proteinData, constructSequence, construct, startResidue, endResidue]);
+
+  const hasConstruct = startResidue != null && endResidue != null;
 
   return (
-    <div
-      style={{
+    <div style={{ display: 'flex', height: '100vh', background: '#f8fafc', color: '#0f172a', overflow: 'hidden' }}>
+
+      {/* Left sidebar */}
+      <div style={{
+        width: 210,
+        flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
-        background: '#f8fafc',
-        color: '#0f172a',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Header */}
-      <header
-        style={{
+        borderRight: '1px solid #e2e8f0',
+        background: '#ffffff',
+      }}>
+        {/* Title + hamburger */}
+        <div style={{
           display: 'flex',
           alignItems: 'center',
-          padding: '0 20px',
-          height: 44,
+          padding: '0 4px 0 12px',
+          height: 40,
           borderBottom: '1px solid #e2e8f0',
           flexShrink: 0,
-          gap: 14,
-          background: '#ffffff',
-        }}
-      >
-        <span style={{ fontSize: 15, fontWeight: 800, color: '#2563eb', letterSpacing: '-0.03em' }}>
-          Construct Designer
-        </span>
-        {proteinData && (
-          <span style={{ fontSize: 12, color: '#64748b' }}>
-            {proteinData.name} · <em style={{ fontStyle: 'normal', color: '#94a3b8' }}>{proteinData.organism}</em>
-            {' '}· {proteinData.sequence.length} aa
+        }}>
+          <HamburgerMenu />
+          <span style={{ fontSize: 12, fontWeight: 800, color: '#2563eb', letterSpacing: '-0.02em' }}>
+            Construct Designer
           </span>
-        )}
-        <div style={{ flex: 1 }} />
-        <HamburgerMenu />
-      </header>
+        </div>
 
-      {/* Search */}
-      <div style={{ flexShrink: 0 }}>
-        <SearchBar />
+        {/* Search */}
+        <div style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
+          <SearchBar />
+        </div>
+
+        {/* Protein info */}
+        {proteinData && (
+          <div style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', lineHeight: 1.4 }}>
+              {proteinData.name}
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{proteinData.organism}</div>
+            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1, fontFamily: 'monospace' }}>
+              {proteinData.uniprotId} · {proteinData.sequence.length} aa
+            </div>
+          </div>
+        )}
+
+        {/* Stats */}
+        {stats && (
+          <div style={{ padding: '10px 12px', flexShrink: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, color: hasConstruct ? '#2563eb' : '#94a3b8' }}>
+              {hasConstruct ? `Construct ${startResidue}–${endResidue}` : 'Full protein'}
+            </div>
+            <StatRow label="MW" value={`${stats.mw.toFixed(1)} kDa`} />
+            <StatRow label="pI" value={stats.pI.toFixed(2)} />
+            <StatRow label="SS bonds" value={stats.ssBonds.toString()} />
+            <StatRow label="Length" value={`${stats.residues} aa`} />
+          </div>
+        )}
       </div>
 
-      {/* Error */}
-      {error && (
-        <div style={{ padding: '6px 20px', flexShrink: 0 }}>
-          <ErrorBanner message={error} onDismiss={() => clearProtein()} />
-        </div>
-      )}
+      {/* Right main */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      {/* Loading */}
-      {status === 'loading' && (
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 12,
-            color: '#64748b',
-          }}
-        >
-          <LoadingSpinner size={28} />
-          <span>Loading protein data…</span>
-        </div>
-      )}
-
-      {/* Idle */}
-      {status === 'idle' && (
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            userSelect: 'none',
-          }}
-        >
-          <div style={{ fontSize: 52, lineHeight: 1 }}>🧬</div>
-          <p style={{ fontSize: 15, margin: 0, color: '#64748b' }}>Enter a UniProt ID above to begin</p>
-          <p style={{ fontSize: 12, margin: 0, color: '#94a3b8' }}>Try P04637 · P01308 · P00533</p>
-        </div>
-      )}
-
-      {/* Main — visible only when ready */}
-      {status === 'ready' && proteinData && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-          {/* Domain diagram strip */}
-          <div style={{ flexShrink: 0, borderBottom: '1px solid #e2e8f0', maxHeight: 240, overflow: 'auto' }}>
-            <div style={PANEL_HEADER}>Domain Annotations ({domains.length} entries · {proteinData.uniprotId})</div>
-            <DomainDiagram
-              domains={domains}
-              sequenceLength={proteinData.sequence.length}
-              ptms={proteinData.ptms}
-            />
+        {error && (
+          <div style={{ padding: '6px 16px', flexShrink: 0 }}>
+            <ErrorBanner message={error} onDismiss={() => clearProtein()} />
           </div>
+        )}
 
-          {/* Sequence viewer strip — single line */}
-          <div style={{ flexShrink: 0, borderBottom: '1px solid #e2e8f0', overflow: 'hidden' }}>
-            <div style={PANEL_HEADER}>Sequence</div>
-            <SequenceViewer protein={proteinData} />
+        {status === 'loading' && (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, color: '#64748b' }}>
+            <LoadingSpinner size={28} />
+            <span>Loading…</span>
           </div>
+        )}
 
-          {/* Content row */}
-          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {status === 'idle' && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, userSelect: 'none' }}>
+            <div style={{ fontSize: 48, lineHeight: 1 }}>🧬</div>
+            <p style={{ fontSize: 14, margin: 0, color: '#64748b' }}>Enter a UniProt ID to begin</p>
+            <p style={{ fontSize: 12, margin: 0, color: '#94a3b8' }}>Try P04637 · P01308 · P00533</p>
+          </div>
+        )}
 
-            {/* 3D Viewer (expanded) */}
-            <div style={{ flex: '0 0 68%', display: 'flex', flexDirection: 'column', borderRight: '1px solid #e2e8f0', overflow: 'hidden' }}>
-              <div style={PANEL_HEADER}>3D Structure (Mol*)</div>
-              <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-                <StructureViewer />
-              </div>
+        {status === 'ready' && proteinData && (
+          <>
+            <div style={{ flexShrink: 0, borderBottom: '1px solid #e2e8f0' }}>
+              <DomainDiagram
+                domains={domains}
+                sequenceLength={proteinData.sequence.length}
+                ptms={proteinData.ptms}
+              />
             </div>
-
-            {/* Analysis panel */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={PANEL_HEADER}>Analysis</div>
-              <div style={{ flex: 1, overflow: 'auto' }}>
-                <AnalysisPanel protein={proteinData} />
-              </div>
+            <div style={{ flexShrink: 0, borderBottom: '1px solid #e2e8f0', overflow: 'hidden' }}>
+              <SequenceViewer protein={proteinData} />
             </div>
+            <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+              <StructureViewer />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
-          </div>
-        </div>
-      )}
+function StatRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
+      <span style={{ fontSize: 11, color: '#64748b' }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', fontFamily: 'monospace' }}>{value}</span>
     </div>
   );
 }

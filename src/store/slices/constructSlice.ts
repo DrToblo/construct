@@ -21,12 +21,14 @@ export const createConstructSlice: StateCreator<ConstructSlice> = (set) => ({
     set({ startResidue: n, endResidue: null, selectionStep: 'selectingEnd' }),
 
   setEndResidue: (n) =>
-    set((state) => ({
-      endResidue: n,
-      // Normalize so start <= end
-      startResidue: state.startResidue != null ? Math.min(state.startResidue, n) : n,
-      selectionStep: 'complete',
-    })),
+    set((state) => {
+      const a = state.startResidue ?? n;
+      return {
+        startResidue: Math.min(a, n),
+        endResidue: Math.max(a, n),
+        selectionStep: 'complete',
+      };
+    }),
 
   setRange: (start, end) =>
     set({

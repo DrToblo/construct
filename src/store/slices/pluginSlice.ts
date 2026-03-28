@@ -1,17 +1,24 @@
 import type { StateCreator } from 'zustand';
+import { PTMType } from '../../types/protein';
 
 export interface PluginSlice {
   activeStructurePluginIds: string[];
   activeAnalysisPluginIds: string[];
+  activePtmTypes: PTMType[];
+  showPpiSurfaces: boolean;
   toggleStructurePlugin: (id: string) => void;
   toggleAnalysisPlugin: (id: string) => void;
   setActiveStructurePlugins: (ids: string[]) => void;
   setActiveAnalysisPlugins: (ids: string[]) => void;
+  togglePtmType: (type: PTMType) => void;
+  togglePpiSurfaces: () => void;
 }
 
 export const createPluginSlice: StateCreator<PluginSlice> = (set) => ({
   activeStructurePluginIds: ['construct-highlight', 'plddt-color'],
   activeAnalysisPluginIds: ['mw', 'pi', 'composition', 'charge'],
+  activePtmTypes: [PTMType.PHOSPHORYLATION, PTMType.DISULFIDE, PTMType.GLYCOSYLATION, PTMType.OTHER],
+  showPpiSurfaces: true,
 
   toggleStructurePlugin: (id) =>
     set((state) => ({
@@ -29,4 +36,14 @@ export const createPluginSlice: StateCreator<PluginSlice> = (set) => ({
 
   setActiveStructurePlugins: (ids) => set({ activeStructurePluginIds: ids }),
   setActiveAnalysisPlugins: (ids) => set({ activeAnalysisPluginIds: ids }),
+
+  togglePtmType: (type) =>
+    set((state) => ({
+      activePtmTypes: state.activePtmTypes.includes(type)
+        ? state.activePtmTypes.filter((t) => t !== type)
+        : [...state.activePtmTypes, type],
+    })),
+
+  togglePpiSurfaces: () =>
+    set((state) => ({ showPpiSurfaces: !state.showPpiSurfaces })),
 });

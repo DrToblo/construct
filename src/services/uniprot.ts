@@ -1,4 +1,4 @@
-import type { ProteinData, PTM } from '../types/protein';
+import type { ProteinData, PTM, PpiSurface } from '../types/protein';
 import { PTMType } from '../types/protein';
 
 export class UniprotNotFoundError extends Error {
@@ -35,6 +35,21 @@ function extractPTMs(features: any[]): PTM[] {
   return ptms;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractPpiSurfaces(features: any[]): PpiSurface[] {
+  const surfaces: PpiSurface[] = [];
+  for (const f of features) {
+    if (f.type !== 'Region') continue;
+    const desc: string = f.description ?? '';
+    if (!desc.toLowerCase().includes('interaction')) continue;
+    const start = f.location?.start?.value;
+    const end = f.location?.end?.value ?? start;
+    if (start == null) continue;
+    surfaces.push({ start: Number(start), end: Number(end), description: desc });
+  }
+  return surfaces;
+}
+
 export async function fetchUniprotEntry(id: string): Promise<ProteinData> {
   const url = `https://rest.uniprot.org/uniprotkb/${id}.json`;
   const res = await fetch(url);
@@ -57,6 +72,7 @@ export async function fetchUniprotEntry(id: string): Promise<ProteinData> {
 
   const features = data.features ?? [];
   const ptms = extractPTMs(features);
+  const ppiSurfaces = extractPpiSurfaces(features);
 
   return {
     uniprotId: id.toUpperCase(),
@@ -67,5 +83,6 @@ export async function fetchUniprotEntry(id: string): Promise<ProteinData> {
       length: seqValue.length,
     },
     ptms,
+    ppiSurfaces,
   };
 }

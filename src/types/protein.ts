@@ -18,12 +18,19 @@ export interface ProteinSequence {
   length: number;
 }
 
+export interface PpiSurface {
+  start: number;   // 1-based UniProt residue
+  end: number;     // 1-based UniProt residue
+  description: string;
+}
+
 export interface ProteinData {
   uniprotId: string;
   name: string;
   organism: string;
   sequence: ProteinSequence;
   ptms: PTM[];
+  ppiSurfaces: PpiSurface[];
 }
 
 export interface Domain {

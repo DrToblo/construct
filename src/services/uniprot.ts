@@ -22,14 +22,19 @@ function extractPTMs(features: any[]): PTM[] {
   for (const f of features) {
     const type: string = f.type ?? '';
     if (type === 'Modified residue' || type === 'Disulfide bond' || type === 'Glycosylation') {
-      const pos = f.location?.start?.value ?? f.location?.position?.value;
-      if (pos == null) continue;
       const desc = f.description ?? type;
-      ptms.push({
-        type: parsePTMType(type === 'Disulfide bond' ? 'disulfide' : desc),
-        position: Number(pos),
-        description: desc,
-      });
+      const ptmType = parsePTMType(type === 'Disulfide bond' ? 'disulfide' : desc);
+      if (type === 'Disulfide bond') {
+        // Each disulfide bond connects two cysteines — extract both positions
+        const start = f.location?.start?.value;
+        const end = f.location?.end?.value;
+        if (start != null) ptms.push({ type: ptmType, position: Number(start), description: desc });
+        if (end != null && end !== start) ptms.push({ type: ptmType, position: Number(end), description: desc });
+      } else {
+        const pos = f.location?.start?.value ?? f.location?.position?.value;
+        if (pos == null) continue;
+        ptms.push({ type: ptmType, position: Number(pos), description: desc });
+      }
     }
   }
   return ptms;

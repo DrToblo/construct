@@ -35,35 +35,35 @@ export const ptmOverlayPlugin: StructurePlugin = {
 
       let idx = 0;
       for (const struct of structures) {
+        // Batch all PTM representations into a single commit per structure
+        const update = plugin.state.data.build();
+
         for (const [type, positions] of byType) {
           const [r, g, b] = PTM_COLOR_RGB[type];
           const color = Color.fromRgb(r, g, b);
-          const selRef = `${PTM_SEL_PREFIX}${idx++}`;
 
-          const expression = MS.struct.modifier.union(
-            positions.map((p) =>
-              MS.struct.generator.atomGroups({
-                'residue-test': MS.core.rel.eq([MS.ammp('label_seq_id'), p]),
-              }),
-            ),
-          );
-
-          const update = plugin.state.data.build();
-          update
-            .to(struct.cell)
-            .apply(
-              StateTransforms.Model.StructureSelectionFromExpression,
-              { label: `PTM ${type}`, expression },
-              { ref: selRef },
-            )
-            .apply(StateTransforms.Representation.StructureRepresentation3D, {
-              type: { name: 'spacefill', params: {} },
-              colorTheme: { name: 'uniform', params: { value: color } },
-              sizeTheme: { name: 'physical', params: {} },
+          for (const pos of positions) {
+            const selRef = `${PTM_SEL_PREFIX}${idx++}`;
+            const expression = MS.struct.generator.atomGroups({
+              'residue-test': MS.core.rel.eq([MS.ammp('label_seq_id'), pos]),
             });
 
-          await update.commit({ revertOnError: true });
+            update
+              .to(struct.cell)
+              .apply(
+                StateTransforms.Model.StructureSelectionFromExpression,
+                { label: `PTM ${type} @${pos}`, expression },
+                { ref: selRef },
+              )
+              .apply(StateTransforms.Representation.StructureRepresentation3D, {
+                type: { name: 'spacefill', params: {} },
+                colorTheme: { name: 'uniform', params: { value: color } },
+                sizeTheme: { name: 'physical', params: {} },
+              });
+          }
         }
+
+        await update.commit({ revertOnError: true });
       }
     } catch (err) {
       console.warn('ptmOverlayPlugin.apply failed:', err);

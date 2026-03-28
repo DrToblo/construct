@@ -6,6 +6,7 @@ import type { MolstarHandle } from '../../types/plugins';
 import { constructHighlightPlugin } from '../../plugins/structure/constructHighlightPlugin';
 import { ptmOverlayPlugin } from '../../plugins/structure/ptmOverlayPlugin';
 import { ppiSurfacePlugin } from '../../plugins/structure/ppiSurfacePlugin';
+import { plddtColorPlugin } from '../../plugins/structure/plddtColorPlugin';
 import { PTMType } from '../../types/protein';
 import { PTM_COLOR_HEX, PPI_COLOR_HEX } from '../../constants/ptmColors';
 import '../../styles/molstar-overrides.css';
@@ -69,6 +70,16 @@ export function StructureViewer() {
     });
     return () => { cancelled = true; };
   }, [structureUrl, molstarHandle, loadStructure]);
+
+  // Apply pLDDT coloring for AlphaFold structures
+  useEffect(() => {
+    if (!structureReady || !molstarHandle) return;
+    if (structureSource === 'alphafold') {
+      plddtColorPlugin.apply(molstarHandle, proteinData!, EMPTY_CONSTRUCT);
+    } else {
+      plddtColorPlugin.remove(molstarHandle);
+    }
+  }, [structureReady, molstarHandle, structureSource, proteinData]);
 
   // Re-apply PTM overlay when structure is ready or active types change
   useEffect(() => {

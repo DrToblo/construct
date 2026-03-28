@@ -12,24 +12,22 @@ export const plddtColorPlugin: StructurePlugin = {
     if (!plugin) return;
 
     try {
-      // Apply pLDDT theme to all structure representations
-      await plugin.dataTransaction(async () => {
-        for (const s of plugin.managers.structure.hierarchy.current.structures) {
-          const update = plugin.state.data.build();
-          for (const c of s.components) {
-            for (const r of c.representations) {
-              update.to(r.cell).update(
-                plugin.representation.structure.registry.get('cartoon'),
-                (old: Record<string, unknown>) => ({
-                  ...old,
-                  colorTheme: { name: 'plddt-confidence', params: {} },
-                }),
-              );
-            }
+      const { StateTransforms } = await import('molstar/lib/mol-plugin-state/transforms');
+      for (const s of plugin.managers.structure.hierarchy.current.structures) {
+        const update = plugin.state.data.build();
+        for (const c of s.components) {
+          for (const r of c.representations) {
+            update.to(r.cell).update(
+              StateTransforms.Representation.StructureRepresentation3D,
+              (old: Record<string, unknown>) => ({
+                ...old,
+                colorTheme: { name: 'plddt-confidence', params: {} },
+              }),
+            );
           }
-          await update.commit({ revertOnError: true });
         }
-      });
+        await update.commit({ revertOnError: true });
+      }
     } catch (err) {
       console.warn('plddtColorPlugin.apply failed:', err);
     }
@@ -39,23 +37,22 @@ export const plddtColorPlugin: StructurePlugin = {
     const { plugin } = handle;
     if (!plugin) return;
     try {
-      await plugin.dataTransaction(async () => {
-        for (const s of plugin.managers.structure.hierarchy.current.structures) {
-          const update = plugin.state.data.build();
-          for (const c of s.components) {
-            for (const r of c.representations) {
-              update.to(r.cell).update(
-                plugin.representation.structure.registry.get('cartoon'),
-                (old: Record<string, unknown>) => ({
-                  ...old,
-                  colorTheme: { name: 'chain-id', params: {} },
-                }),
-              );
-            }
+      const { StateTransforms } = await import('molstar/lib/mol-plugin-state/transforms');
+      for (const s of plugin.managers.structure.hierarchy.current.structures) {
+        const update = plugin.state.data.build();
+        for (const c of s.components) {
+          for (const r of c.representations) {
+            update.to(r.cell).update(
+              StateTransforms.Representation.StructureRepresentation3D,
+              (old: Record<string, unknown>) => ({
+                ...old,
+                colorTheme: { name: 'chain-id', params: {} },
+              }),
+            );
           }
-          await update.commit({ revertOnError: true });
         }
-      });
+        await update.commit({ revertOnError: true });
+      }
     } catch (_) {
       // ignore
     }

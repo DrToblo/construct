@@ -20,8 +20,11 @@ const PTM_ROW_HEIGHT = 18;
 const SVG_PADDING = 8;
 
 
+type DragMode = 'new' | 'handle-start' | 'handle-end';
+
 interface DragState {
-  start: number;
+  mode: DragMode;
+  anchor: number; // fixed end for handle drags; initial click pos for 'new'
   current: number;
 }
 
@@ -31,6 +34,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
   const [containerWidth, setContainerWidth] = useState(800);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [hoverResidue, setHoverResidue] = useState<number | null>(null);
+  const [hoverHandle, setHoverHandle] = useState<'start' | 'end' | null>(null);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
 
@@ -58,8 +62,8 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
     function onGlobalMouseUp() {
       const d = dragRef.current;
       if (d) {
-        const s = Math.min(d.start, d.current);
-        const e = Math.max(d.start, d.current);
+        const s = Math.min(d.anchor, d.current);
+        const e = Math.max(d.anchor, d.current);
         setRange(s, e);
       }
       setDrag(null);
@@ -96,15 +100,39 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
     return Math.max(1, Math.min(sequenceLength, residue));
   }
 
+  const HANDLE_HIT_PX = 12;
+
+  function hitTestHandle(clientX: number, rect: DOMRect): 'start' | 'end' | null {
+    if (startResidue == null || endResidue == null) return null;
+    const startPx = rect.left + LABEL_WIDTH + (startResidue / sequenceLength) * svgWidth;
+    const endPx   = rect.left + LABEL_WIDTH + (endResidue   / sequenceLength) * svgWidth;
+    if (Math.abs(clientX - startPx) <= HANDLE_HIT_PX) return 'start';
+    if (Math.abs(clientX - endPx)   <= HANDLE_HIT_PX) return 'end';
+    return null;
+  }
+
   function handleMouseDown(e: React.MouseEvent<SVGSVGElement>) {
     if (e.button !== 0) return;
-    // Only start drag in the track area (not the label zone)
     const svg = svgRef.current;
     if (!svg) return;
     const rect = svg.getBoundingClientRect();
     if (e.clientX - rect.left < LABEL_WIDTH) return;
+
+    // Check if clicking on an existing handle
+    const hit = hitTestHandle(e.clientX, rect);
+    if (hit === 'start') {
+      setDrag({ mode: 'handle-start', anchor: endResidue!, current: startResidue! });
+      e.preventDefault();
+      return;
+    }
+    if (hit === 'end') {
+      setDrag({ mode: 'handle-end', anchor: startResidue!, current: endResidue! });
+      e.preventDefault();
+      return;
+    }
+
     const r = clientXToResidue(e.clientX);
-    setDrag({ start: r, current: r });
+    setDrag({ mode: 'new', anchor: r, current: r });
     e.preventDefault();
   }
 
@@ -114,26 +142,30 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
     const rect = svg.getBoundingClientRect();
     if (e.clientX - rect.left < LABEL_WIDTH) {
       setHoverResidue(null);
+      setHoverHandle(null);
       return;
     }
     const r = clientXToResidue(e.clientX);
     setHoverResidue(r);
     if (drag) {
       setDrag((prev) => prev ? { ...prev, current: r } : null);
+    } else {
+      setHoverHandle(hitTestHandle(e.clientX, rect));
     }
   }
 
   function handleMouseUp(e: React.MouseEvent<SVGSVGElement>) {
     if (!drag) return;
     const r = clientXToResidue(e.clientX);
-    const s = Math.min(drag.start, r);
-    const end = Math.max(drag.start, r);
+    const s = Math.min(drag.anchor, r);
+    const end = Math.max(drag.anchor, r);
     setRange(s, end);
     setDrag(null);
   }
 
   function handleMouseLeave() {
     setHoverResidue(null);
+    setHoverHandle(null);
   }
 
   function axisTicks() {
@@ -143,8 +175,8 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
     return ticks;
   }
 
-  const dragMin = drag ? Math.min(drag.start, drag.current) : null;
-  const dragMax = drag ? Math.max(drag.start, drag.current) : null;
+  const dragMin = drag ? Math.min(drag.anchor, drag.current) : null;
+  const dragMax = drag ? Math.max(drag.anchor, drag.current) : null;
 
   // Hover cursor x position (within tracks group coordinate)
   const hoverX = hoverResidue != null ? (hoverResidue / sequenceLength) * svgWidth : null;
@@ -169,7 +201,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
         style={{
           display: 'block',
           fontFamily: 'monospace',
-          cursor: drag ? 'col-resize' : 'crosshair',
+          cursor: drag ? 'col-resize' : hoverHandle ? 'ew-resize' : 'crosshair',
           userSelect: 'none',
         }}
         onMouseDown={handleMouseDown}
@@ -271,6 +303,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
               sequenceLength={sequenceLength}
               svgWidth={svgWidth}
               svgHeight={tracksHeight}
+              hoverHandle={hoverHandle}
             />
           )}
 
@@ -335,7 +368,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
       {/* Interaction hint */}
       {!drag && (
         <div style={{ fontSize: 10, color: '#94a3b8', padding: '2px 4px', textAlign: 'right' }}>
-          Click and drag to select a construct range
+          {startResidue != null ? 'Drag handles to adjust · Click and drag to reselect' : 'Click and drag to select a construct range'}
         </div>
       )}
     </div>

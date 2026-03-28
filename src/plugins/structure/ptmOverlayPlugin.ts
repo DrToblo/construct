@@ -76,7 +76,7 @@ export const ptmOverlayPlugin: StructurePlugin = {
     try {
       const state = plugin.state.data;
       const toRemove: string[] = [];
-      state.cells.forEach((_, ref) => {
+      state.cells.forEach((_: unknown, ref: string) => {
         if (ref.startsWith(PTM_SEL_PREFIX)) toRemove.push(ref);
       });
       if (toRemove.length > 0) {

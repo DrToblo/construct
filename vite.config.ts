@@ -17,9 +17,6 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['molstar'],
-    rolldownOptions: {
-      output: { format: 'es' },
-    },
   },
   css: {
     preprocessorOptions: {

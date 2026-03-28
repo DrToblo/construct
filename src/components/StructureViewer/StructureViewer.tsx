@@ -27,6 +27,7 @@ export function StructureViewer() {
 
   const structureUrl = useStore((s) => s.structureUrl);
   const structureSource = useStore((s) => s.structureSource);
+  const structureChainIds = useStore((s) => s.structureChainIds);
   const proteinData = useStore((s) => s.proteinData);
   const selectionStep = useStore((s) => s.selectionStep);
   const setStartResidue = useStore((s) => s.setStartResidue);
@@ -53,12 +54,12 @@ export function StructureViewer() {
   const proteinDataRef = useRef(proteinData);
   proteinDataRef.current = proteinData;
 
-  // Load structure when URL changes; mark ready when done
+  // Load structure when URL or chain filter changes; mark ready when done
   useEffect(() => {
     if (!structureUrl || !molstarHandle) return;
     let cancelled = false;
     setStructureReady(false);
-    loadStructure(structureUrl).then(() => {
+    loadStructure(structureUrl, structureChainIds ?? undefined).then(() => {
       if (cancelled) return;
       // Re-apply construct highlight if an active selection exists
       const { selectionStep, startResidue, endResidue } = useStore.getState();
@@ -69,7 +70,9 @@ export function StructureViewer() {
       setStructureReady(true);
     });
     return () => { cancelled = true; };
-  }, [structureUrl, molstarHandle, loadStructure]);
+  // structureChainIds changes together with structureUrl when switching structures
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [structureUrl, structureChainIds, molstarHandle, loadStructure]);
 
   // Apply pLDDT coloring for AlphaFold structures
   useEffect(() => {

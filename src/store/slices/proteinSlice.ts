@@ -3,7 +3,7 @@ import type { ProteinData, Domain, PDBEntry } from '../../types/protein';
 import { fetchUniprotEntry } from '../../services/uniprot';
 import { fetchInterproDomains } from '../../services/interpro';
 import { fetchAlphaFoldStructure, AlphaFoldNotFoundError } from '../../services/alphafold';
-import { fetchRcsbByUniprot } from '../../services/rcsb';
+import { fetchRcsbByUniprot, fetchChainIdsForUniprotInPdb } from '../../services/rcsb';
 import { fetchPdbEntries } from '../../services/pdbe';
 
 export type LoadStatus = 'idle' | 'loading' | 'error' | 'ready';
@@ -16,9 +16,11 @@ export interface ProteinSlice {
   selectedDomainSources: string[];
   structureUrl: string | null;
   structureSource: StructureSource;
+  structureChainIds: string[] | null;       // null = no filtering; string[] = show only these chains
   // Default structure (AlphaFold or RCSB fallback) preserved for reverting PDB selection
   defaultStructureUrl: string | null;
   defaultStructureSource: StructureSource;
+  defaultStructureChainIds: string[] | null;
   // PDB structures
   pdbEntries: PDBEntry[];
   showPdbTracks: boolean;
@@ -29,19 +31,21 @@ export interface ProteinSlice {
   clearProtein: () => void;
   setSelectedDomainSources: (sources: string[]) => void;
   setShowPdbTracks: (show: boolean) => void;
-  selectPdbEntry: (entry: PDBEntry) => void;
+  selectPdbEntry: (entry: PDBEntry) => Promise<void>;
   clearPdbSelection: () => void;
 }
 
-export const createProteinSlice: StateCreator<ProteinSlice> = (set) => ({
+export const createProteinSlice: StateCreator<ProteinSlice> = (set, get) => ({
   uniprotId: null,
   proteinData: null,
   domains: [],
   selectedDomainSources: ['Pfam'],
   structureUrl: null,
   structureSource: null,
+  structureChainIds: null,
   defaultStructureUrl: null,
   defaultStructureSource: null,
+  defaultStructureChainIds: null,
   pdbEntries: [],
   showPdbTracks: false,
   activePdbId: null,
@@ -56,8 +60,10 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set) => ({
       selectedDomainSources: ['Pfam'],
       structureUrl: null,
       structureSource: null,
+      structureChainIds: null,
       defaultStructureUrl: null,
       defaultStructureSource: null,
+      defaultStructureChainIds: null,
       pdbEntries: [],
       showPdbTracks: false,
       activePdbId: null,
@@ -69,18 +75,27 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set) => ({
 
   setShowPdbTracks: (show) => set({ showPdbTracks: show }),
 
-  selectPdbEntry: (entry) =>
+  selectPdbEntry: async (entry) => {
+    const { uniprotId } = get();
+    let chainIds: string[] = [entry.chainId];
+    if (uniprotId) {
+      const fetched = await fetchChainIdsForUniprotInPdb(entry.pdbId, uniprotId);
+      if (fetched.length > 0) chainIds = fetched;
+    }
     set({
       activePdbId: entry.pdbId,
       structureUrl: entry.cifUrl,
       structureSource: 'rcsb',
-    }),
+      structureChainIds: chainIds,
+    });
+  },
 
   clearPdbSelection: () =>
     set((state) => ({
       activePdbId: null,
       structureUrl: state.defaultStructureUrl,
       structureSource: state.defaultStructureSource,
+      structureChainIds: state.defaultStructureChainIds,
     })),
 
   loadProtein: async (id: string) => {
@@ -100,11 +115,11 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set) => ({
       (async () => {
         try {
           const af = await fetchAlphaFoldStructure(cleanId);
-          return { url: af.cifUrl, source: 'alphafold' as const };
+          return { url: af.cifUrl, source: 'alphafold' as const, chainIds: null as string[] | null };
         } catch (err) {
           if (err instanceof AlphaFoldNotFoundError) {
             const rcsb = await fetchRcsbByUniprot(cleanId);
-            if (rcsb) return { url: rcsb.cifUrl, source: 'rcsb' as const };
+            if (rcsb) return { url: rcsb.cifUrl, source: 'rcsb' as const, chainIds: rcsb.chainIds };
           }
           throw err;
         }
@@ -123,6 +138,8 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set) => ({
       structureResult.status === 'fulfilled' ? structureResult.value.url : null;
     const structureSource =
       structureResult.status === 'fulfilled' ? structureResult.value.source : null;
+    const structureChainIds =
+      structureResult.status === 'fulfilled' ? structureResult.value.chainIds : null;
     const pdbEntries = pdbResult.status === 'fulfilled' ? pdbResult.value : [];
 
     set({
@@ -130,8 +147,10 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set) => ({
       domains,
       structureUrl,
       structureSource,
+      structureChainIds,
       defaultStructureUrl: structureUrl,
       defaultStructureSource: structureSource,
+      defaultStructureChainIds: structureChainIds,
       pdbEntries,
       status: 'ready',
       error: null,

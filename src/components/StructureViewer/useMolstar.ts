@@ -4,9 +4,39 @@ import type { MolstarHandle } from '../../types/plugins';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MolPlugin = any;
 
+/** Apply full transparency to all chains not in targetChainIds. */
+async function hideNonTargetChains(plugin: MolPlugin, targetChainIds: string[]) {
+  try {
+    const { MolScriptBuilder: MS } = await import('molstar/lib/mol-script/language/builder');
+    const { Script } = await import('molstar/lib/mol-script/script');
+    const { StructureSelection } = await import('molstar/lib/mol-model/structure/query');
+    const { setStructureTransparency } = await import(
+      'molstar/lib/mol-plugin-state/helpers/structure-transparency'
+    );
+
+    const expression = MS.struct.generator.atomGroups({
+      'chain-test': MS.core.logic.not([
+        MS.core.set.has([MS.set(...targetChainIds), MS.ammp('auth_asym_id')]),
+      ]),
+    });
+
+    const structures = plugin.managers.structure.hierarchy.current.structures;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allComponents = structures.flatMap((s: any) => s.components);
+    if (!allComponents.length) return;
+
+    await setStructureTransparency(plugin, allComponents, 1, async (structure: MolPlugin) => {
+      const sel = Script.getStructureSelection(expression, structure);
+      return StructureSelection.toLociWithSourceUnits(sel);
+    });
+  } catch (err) {
+    console.warn('hideNonTargetChains failed:', err);
+  }
+}
+
 export interface UseMolstarResult {
   handleRef: React.MutableRefObject<MolstarHandle | null>;
-  loadStructure: (url: string) => Promise<void>;
+  loadStructure: (url: string, chainIds?: string[]) => Promise<void>;
 }
 
 export function useMolstar(
@@ -89,7 +119,7 @@ export function useMolstar(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadStructure = useCallback(async (url: string) => {
+  const loadStructure = useCallback(async (url: string, chainIds?: string[]) => {
     const plugin = pluginRef.current;
     if (!plugin) return;
     try {
@@ -104,6 +134,10 @@ export function useMolstar(
       const trajectory = await plugin.builders.structure.parseTrajectory(data, 'mmcif');
       await plugin.builders.structure.hierarchy.applyPreset(trajectory, 'default');
       PluginCommands.Camera.Reset(plugin);
+
+      if (chainIds && chainIds.length > 0) {
+        await hideNonTargetChains(plugin, chainIds);
+      }
     } catch (err) {
       console.error('Failed to load structure:', err);
     }

@@ -2,9 +2,53 @@ export interface RcsbStructure {
   cifUrl: string;
   pdbId: string;
   resolution: number | null;
+  chainIds: string[];
 }
 
 const RCSB_GRAPHQL = 'https://data.rcsb.org/graphql';
+
+/** Returns all auth_asym_ids in a PDB entry that map to the given UniProt accession. */
+export async function fetchChainIdsForUniprotInPdb(
+  pdbId: string,
+  uniprotId: string,
+): Promise<string[]> {
+  const res = await fetch(RCSB_GRAPHQL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query: `{
+        entry(entry_id: "${pdbId}") {
+          polymer_entities {
+            rcsb_polymer_entity_container_identifiers {
+              auth_asym_ids
+              reference_sequence_identifiers {
+                database_accession
+                database_name
+              }
+            }
+          }
+        }
+      }`,
+    }),
+  });
+  if (!res.ok) return [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data: any = await res.json();
+  const entities = data?.data?.entry?.polymer_entities ?? [];
+  const chainIds: string[] = [];
+  for (const entity of entities) {
+    const ids = entity?.rcsb_polymer_entity_container_identifiers;
+    const refs: { database_name: string; database_accession: string }[] =
+      ids?.reference_sequence_identifiers ?? [];
+    const matchesUniprot = refs.some(
+      (r) => r.database_name === 'UniProt' && r.database_accession === uniprotId,
+    );
+    if (matchesUniprot) {
+      chainIds.push(...(ids?.auth_asym_ids ?? []));
+    }
+  }
+  return chainIds;
+}
 
 export async function fetchRcsbByUniprot(uniprotId: string): Promise<RcsbStructure | null> {
   const query = `
@@ -66,9 +110,12 @@ export async function fetchRcsbByUniprot(uniprotId: string): Promise<RcsbStructu
     resolution = gqlData?.data?.entry?.rcsb_entry_info?.resolution_combined?.[0] ?? null;
   }
 
+  const chainIds = await fetchChainIdsForUniprotInPdb(pdbId, uniprotId);
+
   return {
     cifUrl: `https://files.rcsb.org/download/${pdbId}.cif`,
     pdbId,
     resolution,
+    chainIds,
   };
 }

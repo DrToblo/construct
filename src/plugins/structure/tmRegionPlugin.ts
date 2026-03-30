@@ -50,9 +50,9 @@ export const tmRegionPlugin: StructurePlugin = {
               { ref: selRef },
             )
             .apply(StateTransforms.Representation.StructureRepresentation3D, {
-              type: { name: 'cartoon', params: {} },
+              type: { name: 'spacefill', params: {} },
               colorTheme: { name: 'uniform', params: { value: black } },
-              sizeTheme: { name: 'uniform', params: { value: 1 } },
+              sizeTheme: { name: 'physical', params: {} },
             });
         }
 

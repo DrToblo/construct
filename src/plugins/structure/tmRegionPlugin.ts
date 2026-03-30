@@ -1,18 +1,17 @@
 import type { StructurePlugin, MolstarHandle } from '../../types/plugins';
 import type { ProteinData } from '../../types/protein';
 import type { ConstructSelection } from '../../types/construct';
-import { PPI_COLOR_RGB } from '../../constants/ptmColors';
 
-const PPI_SEL_PREFIX = 'ppi-sel-';
+const TM_SEL_PREFIX = 'tm-sel-';
 
-export const ppiSurfacePlugin: StructurePlugin = {
-  id: 'ppi-surface',
-  name: 'PPI Surfaces',
-  description: 'Highlights protein-protein interaction surface residues',
+export const tmRegionPlugin: StructurePlugin = {
+  id: 'tm-region',
+  name: 'Transmembrane Regions',
+  description: 'Highlights transmembrane regions in black',
 
   async apply(handle: MolstarHandle, protein: ProteinData, _construct: ConstructSelection) {
     const { plugin } = handle;
-    if (!plugin || !protein.ppiSurfaces || protein.ppiSurfaces.length === 0) return;
+    if (!plugin || !protein.tmRegions || protein.tmRegions.length === 0) return;
 
     await this.remove(handle);
 
@@ -24,43 +23,43 @@ export const ppiSurfacePlugin: StructurePlugin = {
       const structures = plugin.managers.structure.hierarchy.current.structures;
       if (!structures.length) return;
 
-      const [r, g, b] = PPI_COLOR_RGB;
-      const color = Color.fromRgb(r, g, b);
+      const black = Color.fromRgb(0, 0, 0);
 
       let idx = 0;
       for (const struct of structures) {
-        for (const surface of protein.ppiSurfaces) {
-          const selRef = `${PPI_SEL_PREFIX}${idx++}`;
+        const update = plugin.state.data.build();
+
+        for (const region of protein.tmRegions) {
+          const selRef = `${TM_SEL_PREFIX}${idx++}`;
 
           const expression = MS.struct.modifier.union([
             MS.struct.generator.atomGroups({
               'residue-test': MS.core.rel.inRange([
                 MS.ammp('label_seq_id'),
-                surface.start,
-                surface.end,
+                region.start,
+                region.end,
               ]),
             }),
           ]);
 
-          const update = plugin.state.data.build();
           update
             .to(struct.cell)
             .apply(
               StateTransforms.Model.StructureSelectionFromExpression,
-              { label: `PPI: ${surface.description}`, expression },
+              { label: `TM: ${region.description} (${region.start}–${region.end})`, expression },
               { ref: selRef },
             )
             .apply(StateTransforms.Representation.StructureRepresentation3D, {
-              type: { name: 'spacefill', params: {} },
-              colorTheme: { name: 'uniform', params: { value: color } },
-              sizeTheme: { name: 'physical', params: {} },
+              type: { name: 'cartoon', params: {} },
+              colorTheme: { name: 'uniform', params: { value: black } },
+              sizeTheme: { name: 'uniform', params: { value: 1 } },
             });
-
-          await update.commit({ revertOnError: true });
         }
+
+        await update.commit({ revertOnError: true });
       }
     } catch (err) {
-      console.warn('ppiSurfacePlugin.apply failed:', err);
+      console.warn('tmRegionPlugin.apply failed:', err);
     }
   },
 
@@ -71,7 +70,7 @@ export const ppiSurfacePlugin: StructurePlugin = {
       const state = plugin.state.data;
       const toRemove: string[] = [];
       state.cells.forEach((_: unknown, ref: string) => {
-        if (ref.startsWith(PPI_SEL_PREFIX)) toRemove.push(ref);
+        if (ref.startsWith(TM_SEL_PREFIX)) toRemove.push(ref);
       });
       if (toRemove.length > 0) {
         const update = state.build();

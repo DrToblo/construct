@@ -1,4 +1,4 @@
-import type { ProteinData, PTM, PpiSurface } from '../types/protein';
+import type { ProteinData, PTM, TransmembraneRegion } from '../types/protein';
 import { PTMType } from '../types/protein';
 
 export class UniprotNotFoundError extends Error {
@@ -41,18 +41,16 @@ function extractPTMs(features: any[]): PTM[] {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractPpiSurfaces(features: any[]): PpiSurface[] {
-  const surfaces: PpiSurface[] = [];
+function extractTmRegions(features: any[]): TransmembraneRegion[] {
+  const regions: TransmembraneRegion[] = [];
   for (const f of features) {
-    if (f.type !== 'Region') continue;
-    const desc: string = f.description ?? '';
-    if (!desc.toLowerCase().includes('interaction')) continue;
+    if (f.type !== 'Transmembrane') continue;
     const start = f.location?.start?.value;
     const end = f.location?.end?.value ?? start;
     if (start == null) continue;
-    surfaces.push({ start: Number(start), end: Number(end), description: desc });
+    regions.push({ start: Number(start), end: Number(end), description: f.description ?? 'Transmembrane' });
   }
-  return surfaces;
+  return regions;
 }
 
 export async function fetchUniprotEntry(id: string): Promise<ProteinData> {
@@ -77,7 +75,7 @@ export async function fetchUniprotEntry(id: string): Promise<ProteinData> {
 
   const features = data.features ?? [];
   const ptms = extractPTMs(features);
-  const ppiSurfaces = extractPpiSurfaces(features);
+  const tmRegions = extractTmRegions(features);
 
   return {
     uniprotId: id.toUpperCase(),
@@ -88,6 +86,6 @@ export async function fetchUniprotEntry(id: string): Promise<ProteinData> {
       length: seqValue.length,
     },
     ptms,
-    ppiSurfaces,
+    tmRegions,
   };
 }

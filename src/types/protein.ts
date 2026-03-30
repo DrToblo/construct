@@ -18,7 +18,7 @@ export interface ProteinSequence {
   length: number;
 }
 
-export interface PpiSurface {
+export interface TransmembraneRegion {
   start: number;   // 1-based UniProt residue
   end: number;     // 1-based UniProt residue
   description: string;
@@ -30,7 +30,7 @@ export interface ProteinData {
   organism: string;
   sequence: ProteinSequence;
   ptms: PTM[];
-  ppiSurfaces: PpiSurface[];
+  tmRegions: TransmembraneRegion[];
 }
 
 export interface Domain {

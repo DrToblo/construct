@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import type { Domain, PTM, PTMType } from '../../types/protein';
+import type { Domain, PTM, PTMType, TransmembraneRegion } from '../../types/protein';
 import { PTM_COLOR_HEX } from '../../constants/ptmColors';
 import { DomainTrack } from './DomainTrack';
 import { ConstructOverlay } from './ConstructOverlay';
@@ -11,12 +11,14 @@ interface DomainDiagramProps {
   domains: Domain[];
   sequenceLength: number;
   ptms?: PTM[];
+  tmRegions?: TransmembraneRegion[];
 }
 
 const LABEL_WIDTH = 60;
 const TRACK_HEIGHT = 28;
 const AXIS_HEIGHT = 20;
 const PTM_ROW_HEIGHT = 18;
+const TM_ROW_HEIGHT = 16;
 const SVG_PADDING = 8;
 
 
@@ -28,7 +30,7 @@ interface DragState {
   current: number;
 }
 
-export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiagramProps) {
+export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = [] }: DomainDiagramProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [containerWidth, setContainerWidth] = useState(800);
@@ -85,11 +87,13 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
 
   const svgWidth = Math.max(0, containerWidth - LABEL_WIDTH - SVG_PADDING * 2);
   const hasPtms = ptms.length > 0;
+  const hasTmRegions = tmRegions.length > 0;
   const showDomainTracks = groups.length > 0;
   const showPdbSection = showPdbTracks && pdbEntries.length > 0;
   const tracksHeight = groups.length * TRACK_HEIGHT;
+  const tmSecHeight = hasTmRegions ? TM_ROW_HEIGHT : 0;
   const pdbSecHeight = showPdbSection ? pdbTrackHeight(pdbEntries) : 0;
-  const svgHeight = tracksHeight + pdbSecHeight + AXIS_HEIGHT + (hasPtms ? PTM_ROW_HEIGHT : 0);
+  const svgHeight = tracksHeight + tmSecHeight + pdbSecHeight + AXIS_HEIGHT + (hasPtms ? PTM_ROW_HEIGHT : 0);
 
   function clientXToResidue(clientX: number): number {
     const svg = svgRef.current;
@@ -209,8 +213,41 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
       >
+        {/* TM region row */}
+        {hasTmRegions && (
+          <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight})`}>
+            <text
+              x={-LABEL_WIDTH + 4}
+              y={TM_ROW_HEIGHT / 2 + 4}
+              fontSize={9}
+              fill="#94a3b8"
+              fontFamily="monospace"
+            >
+              TM
+            </text>
+            {tmRegions.map((region, i) => {
+              const x = (region.start / sequenceLength) * svgWidth;
+              const w = Math.max(2, ((region.end - region.start + 1) / sequenceLength) * svgWidth);
+              return (
+                <rect
+                  key={i}
+                  x={x}
+                  y={3}
+                  width={w}
+                  height={TM_ROW_HEIGHT - 6}
+                  rx={2}
+                  fill="#1e293b"
+                  fillOpacity={0.85}
+                >
+                  <title>{region.description} ({region.start}–{region.end})</title>
+                </rect>
+              );
+            })}
+          </g>
+        )}
+
         {/* Axis */}
-        <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + pdbSecHeight})`}>
+        <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + tmSecHeight + pdbSecHeight})`}>
           <line x1={0} y1={0} x2={svgWidth} y2={0} stroke="#e2e8f0" strokeWidth={1} />
           {axisTicks().map((tick) => {
             const x = (tick / sequenceLength) * svgWidth;
@@ -225,7 +262,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
 
         {/* PTM row */}
         {hasPtms && (
-          <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + pdbSecHeight + AXIS_HEIGHT})`}>
+          <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + tmSecHeight + pdbSecHeight + AXIS_HEIGHT})`}>
             {/* Row label in the reserved label area */}
             <text
               x={-LABEL_WIDTH + 4}
@@ -343,7 +380,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
             entries={pdbEntries}
             sequenceLength={sequenceLength}
             svgWidth={svgWidth}
-            yOffset={tracksHeight}
+            yOffset={tracksHeight + tmSecHeight}
             labelWidth={LABEL_WIDTH}
           />
         )}

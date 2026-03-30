@@ -16,6 +16,3 @@ export const PTM_COLOR_RGB: Record<PTMType, [number, number, number]> = {
   [PTMType.OTHER]:           [139, 92, 246],
 };
 
-/** PPI interaction surface color */
-export const PPI_COLOR_HEX = '#0891b2'; // cyan-600
-export const PPI_COLOR_RGB: [number, number, number] = [8, 145, 178];

@@ -5,10 +5,10 @@ import { useResidueSelection } from './useResidueSelection';
 import type { MolstarHandle } from '../../types/plugins';
 import { constructHighlightPlugin } from '../../plugins/structure/constructHighlightPlugin';
 import { ptmOverlayPlugin } from '../../plugins/structure/ptmOverlayPlugin';
-import { ppiSurfacePlugin } from '../../plugins/structure/ppiSurfacePlugin';
+import { tmRegionPlugin } from '../../plugins/structure/tmRegionPlugin';
 import { plddtColorPlugin } from '../../plugins/structure/plddtColorPlugin';
 import { PTMType } from '../../types/protein';
-import { PTM_COLOR_HEX, PPI_COLOR_HEX } from '../../constants/ptmColors';
+import { PTM_COLOR_HEX } from '../../constants/ptmColors';
 import '../../styles/molstar-overrides.css';
 
 const PTM_LABELS: Record<PTMType, string> = {
@@ -37,9 +37,9 @@ export function StructureViewer() {
   const startResidue = useStore((s) => s.startResidue);
   const endResidue = useStore((s) => s.endResidue);
   const activePtmTypes = useStore((s) => s.activePtmTypes);
-  const showPpiSurfaces = useStore((s) => s.showPpiSurfaces);
+  const showTmRegions = useStore((s) => s.showTmRegions);
   const togglePtmType = useStore((s) => s.togglePtmType);
-  const togglePpiSurfaces = useStore((s) => s.togglePpiSurfaces);
+  const toggleTmRegions = useStore((s) => s.toggleTmRegions);
 
   const handleReady = useCallback((handle: MolstarHandle) => {
     setMolstarHandle(handle);
@@ -95,15 +95,15 @@ export function StructureViewer() {
     }
   }, [structureReady, molstarHandle, proteinData, activePtmTypes]);
 
-  // Re-apply PPI surface overlay when structure is ready or toggle changes
+  // Apply/remove TM region overlay
   useEffect(() => {
     if (!structureReady || !molstarHandle || !proteinData) return;
-    if (showPpiSurfaces && proteinData.ppiSurfaces.length > 0) {
-      ppiSurfacePlugin.apply(molstarHandle, proteinData, EMPTY_CONSTRUCT);
+    if (showTmRegions && proteinData.tmRegions.length > 0) {
+      tmRegionPlugin.apply(molstarHandle, proteinData, EMPTY_CONSTRUCT);
     } else {
-      ppiSurfacePlugin.remove(molstarHandle);
+      tmRegionPlugin.remove(molstarHandle);
     }
-  }, [structureReady, molstarHandle, proteinData, showPpiSurfaces]);
+  }, [structureReady, molstarHandle, proteinData, showTmRegions]);
 
   // Apply/remove construct highlight when selection changes
   useEffect(() => {
@@ -146,7 +146,7 @@ export function StructureViewer() {
       )
     : [];
 
-  const hasPpi = (proteinData?.ppiSurfaces.length ?? 0) > 0;
+  const hasTm = (proteinData?.tmRegions.length ?? 0) > 0;
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -176,7 +176,7 @@ export function StructureViewer() {
       )}
 
       {/* Overlay toggle panel */}
-      {(ptmTypesInProtein.length > 0 || hasPpi) && (
+      {(ptmTypesInProtein.length > 0 || hasTm) && (
         <div
           style={{
             position: 'absolute',
@@ -205,15 +205,15 @@ export function StructureViewer() {
               </button>
             );
           })}
-          {hasPpi && (
+          {hasTm && (
             <button
-              onClick={togglePpiSurfaces}
-              style={overlayBtnStyle(PPI_COLOR_HEX, showPpiSurfaces)}
-              title={showPpiSurfaces ? 'Hide PPI surfaces' : 'Show PPI surfaces'}
+              onClick={toggleTmRegions}
+              style={overlayBtnStyle('#1e293b', showTmRegions)}
+              title={showTmRegions ? 'Hide transmembrane regions' : 'Show transmembrane regions'}
             >
-              <span style={{ width: 8, height: 8, borderRadius: '2px', background: showPpiSurfaces ? PPI_COLOR_HEX : '#9ca3af', flexShrink: 0 }} />
-              PPI Surfaces
-              <span style={{ color: '#9ca3af', fontSize: '10px' }}>({proteinData!.ppiSurfaces.length})</span>
+              <span style={{ width: 8, height: 8, borderRadius: '2px', background: showTmRegions ? '#1e293b' : '#9ca3af', flexShrink: 0 }} />
+              TM Regions
+              <span style={{ color: '#9ca3af', fontSize: '10px' }}>({proteinData!.tmRegions.length})</span>
             </button>
           )}
         </div>

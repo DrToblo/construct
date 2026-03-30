@@ -39,7 +39,7 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set, get) => ({
   uniprotId: null,
   proteinData: null,
   domains: [],
-  selectedDomainSources: ['Pfam'],
+  selectedDomainSources: ['pfam'],
   structureUrl: null,
   structureSource: null,
   structureChainIds: null,
@@ -57,7 +57,7 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set, get) => ({
       uniprotId: null,
       proteinData: null,
       domains: [],
-      selectedDomainSources: ['Pfam'],
+      selectedDomainSources: ['pfam'],
       structureUrl: null,
       structureSource: null,
       structureChainIds: null,
@@ -107,6 +107,7 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set, get) => ({
       activePdbId: null,
       pdbEntries: [],
       showPdbTracks: false,
+      selectedDomainSources: ['pfam'],
     });
 
     const [uniprotResult, interproResult, structureResult, pdbResult] = await Promise.allSettled([

@@ -259,22 +259,6 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
                 </g>
               );
             })}
-            {/* PTM legend */}
-            {(() => {
-              const types = Array.from(new Set(ptms.map((p) => p.type)));
-              return types.map((t, i) => (
-                <g key={t} transform={`translate(${svgWidth - types.length * 68 + i * 68}, 0)`}>
-                  <polygon
-                    points={`${0},${-3} ${4},${PTM_ROW_HEIGHT / 2 - 1} ${0},${PTM_ROW_HEIGHT - 1} ${-4},${PTM_ROW_HEIGHT / 2 - 1}`}
-                    fill={PTM_COLOR_HEX[t] ?? '#8b5cf6'}
-                    fillOpacity={0.85}
-                  />
-                  <text x={6} y={PTM_ROW_HEIGHT / 2 + 3} fontSize={8} fill="#64748b" fontFamily="monospace">
-                    {t}
-                  </text>
-                </g>
-              ));
-            })()}
           </g>
         )}
 
@@ -365,12 +349,30 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [] }: DomainDiag
         )}
       </svg>
 
-      {/* Interaction hint */}
-      {!drag && (
-        <div style={{ fontSize: 10, color: '#94a3b8', padding: '2px 4px', textAlign: 'right' }}>
-          {startResidue != null ? 'Drag handles to adjust · Click and drag to reselect' : 'Click and drag to select a construct range'}
-        </div>
-      )}
+      {/* PTM legend + interaction hint */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 4px' }}>
+        {hasPtms ? (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {Array.from(new Set(ptms.map((p) => p.type))).map((t) => (
+              <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <svg width={10} height={10} style={{ flexShrink: 0 }}>
+                  <polygon
+                    points="5,0 10,5 5,10 0,5"
+                    fill={PTM_COLOR_HEX[t] ?? '#8b5cf6'}
+                    fillOpacity={0.85}
+                  />
+                </svg>
+                <span style={{ fontSize: 10, color: '#64748b', fontFamily: 'monospace' }}>{t}</span>
+              </div>
+            ))}
+          </div>
+        ) : <div />}
+        {!drag && (
+          <div style={{ fontSize: 10, color: '#94a3b8' }}>
+            {startResidue != null ? 'Drag handles to adjust · Click and drag to reselect' : 'Click and drag to select a construct range'}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

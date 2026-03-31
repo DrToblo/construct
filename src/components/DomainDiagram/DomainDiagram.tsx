@@ -46,7 +46,7 @@ const TRACK_HEIGHT = 28;
 const AXIS_HEIGHT = 20;
 const PTM_ROW_HEIGHT = 18;
 const TM_ROW_HEIGHT = 16;
-const SOL_ROW_HEIGHT = 16;
+const SOL_ROW_HEIGHT = 20;
 const SVG_PADDING = 8;
 
 
@@ -530,20 +530,37 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
             {solubilityStatus === 'done' && solubilityHits.map((hit, i) => {
               const x = (hit.queryStart / sequenceLength) * svgWidth;
               const w = Math.max(2, ((hit.queryEnd - hit.queryStart + 1) / sequenceLength) * svgWidth);
+              const barH = SOL_ROW_HEIGHT - 6;
+              const label = hit.target.length > 14 ? hit.target.slice(0, 13) + '…' : hit.target;
               return (
-                <rect
-                  key={i}
-                  x={x}
-                  y={3}
-                  width={w}
-                  height={SOL_ROW_HEIGHT - 6}
-                  rx={2}
-                  fill="#16a34a"
-                  fillOpacity={0.75}
-                  style={{ cursor: 'default' }}
-                >
-                  <title>{hit.target} ({hit.identity.toFixed(1)}% identity, {hit.queryStart}–{hit.queryEnd})</title>
-                </rect>
+                <g key={i}>
+                  <rect
+                    x={x}
+                    y={3}
+                    width={w}
+                    height={barH}
+                    rx={2}
+                    fill="#16a34a"
+                    fillOpacity={0.75}
+                    style={{ cursor: 'default' }}
+                  >
+                    <title>{hit.target} ({hit.identity.toFixed(1)}% identity, {hit.queryStart}–{hit.queryEnd})</title>
+                  </rect>
+                  {w > 40 && (
+                    <text
+                      x={x + w / 2}
+                      y={3 + barH / 2 + 3}
+                      textAnchor="middle"
+                      fontSize={8}
+                      fill="#fff"
+                      fontWeight={600}
+                      pointerEvents="none"
+                      style={{ userSelect: 'none' }}
+                    >
+                      {label}
+                    </text>
+                  )}
+                </g>
               );
             })}
           </g>

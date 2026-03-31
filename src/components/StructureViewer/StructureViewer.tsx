@@ -36,6 +36,7 @@ export function StructureViewer() {
   const resetSelection = useStore((s) => s.resetSelection);
   const startResidue = useStore((s) => s.startResidue);
   const endResidue = useStore((s) => s.endResidue);
+  const activeStructurePluginIds = useStore((s) => s.activeStructurePluginIds);
   const activePtmTypes = useStore((s) => s.activePtmTypes);
   const showTmRegions = useStore((s) => s.showTmRegions);
   const togglePtmType = useStore((s) => s.togglePtmType);
@@ -74,15 +75,15 @@ export function StructureViewer() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [structureUrl, structureChainIds, molstarHandle, loadStructure]);
 
-  // Apply pLDDT coloring for AlphaFold structures
+  // Apply pLDDT coloring for AlphaFold structures when plugin is active
   useEffect(() => {
     if (!structureReady || !molstarHandle) return;
-    if (structureSource === 'alphafold') {
+    if (structureSource === 'alphafold' && activeStructurePluginIds.includes('plddt-color')) {
       plddtColorPlugin.apply(molstarHandle, proteinData!, EMPTY_CONSTRUCT);
     } else {
       plddtColorPlugin.remove(molstarHandle);
     }
-  }, [structureReady, molstarHandle, structureSource, proteinData]);
+  }, [structureReady, molstarHandle, structureSource, proteinData, activeStructurePluginIds]);
 
   // Re-apply PTM overlay when structure is ready or active types change
   useEffect(() => {

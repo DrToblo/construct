@@ -61,9 +61,15 @@ export function useMolstar(
         const { createPluginUI } = await import('molstar/lib/mol-plugin-ui');
         const { renderReact18 } = await import('molstar/lib/mol-plugin-ui/react18');
         const { DefaultPluginUISpec } = await import('molstar/lib/mol-plugin-ui/spec');
+        const { PluginSpec } = await import('molstar/lib/mol-plugin/spec');
+        const { MAQualityAssessment } = await import('molstar/lib/extensions/model-archive/quality-assessment/behavior');
         if (cancelled) return;
 
         const spec = DefaultPluginUISpec();
+        spec.behaviors = [
+          ...(spec.behaviors ?? []),
+          PluginSpec.Behavior(MAQualityAssessment),
+        ];
         // Remove camera-focus-loci so clicking a residue doesn't auto-zoom the camera
         spec.behaviors = (spec.behaviors ?? []).filter(
           (b) => b?.transformer?.id !== 'camera-focus-loci',

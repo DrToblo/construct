@@ -1,10 +1,13 @@
 import type { StateCreator } from 'zustand';
-import type { ProteinData, Domain, PDBEntry } from '../../types/protein';
+import type { ProteinData, Domain, PDBEntry, SolubilityHit } from '../../types/protein';
 import { fetchUniprotEntry } from '../../services/uniprot';
 import { fetchInterproDomains } from '../../services/interpro';
 import { fetchAlphaFoldStructure, AlphaFoldNotFoundError } from '../../services/alphafold';
 import { fetchRcsbByUniprot, fetchChainIdsForUniprotInPdb } from '../../services/rcsb';
 import { fetchPdbEntries } from '../../services/pdbe';
+import { searchSolubility } from '../../services/mmseqs';
+
+export type SolubilityStatus = 'idle' | 'searching' | 'done' | 'error';
 
 export type LoadStatus = 'idle' | 'loading' | 'error' | 'ready';
 export type StructureSource = 'alphafold' | 'rcsb' | null;
@@ -28,6 +31,8 @@ export interface ProteinSlice {
   activePdbId: string | null;
   status: LoadStatus;
   error: string | null;
+  solubilityHits: SolubilityHit[];
+  solubilityStatus: SolubilityStatus;
   loadProtein: (id: string) => Promise<void>;
   clearProtein: () => void;
   setSelectedDomainSources: (sources: string[]) => void;
@@ -54,6 +59,8 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set, get) => ({
   activePdbId: null,
   status: 'idle',
   error: null,
+  solubilityHits: [],
+  solubilityStatus: 'idle',
 
   clearProtein: () =>
     set({
@@ -73,6 +80,8 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set, get) => ({
       activePdbId: null,
       status: 'idle',
       error: null,
+      solubilityHits: [],
+      solubilityStatus: 'idle',
     }),
 
   setSelectedDomainSources: (sources) => set({ selectedDomainSources: sources }),
@@ -114,6 +123,8 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set, get) => ({
       pdbEntries: [],
       showPdbTracks: false,
       selectedDomainSources: ['pfam'],
+      solubilityHits: [],
+      solubilityStatus: 'idle',
     });
 
     const [uniprotResult, interproResult, structureResult, pdbResult] = await Promise.allSettled([
@@ -161,6 +172,12 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set, get) => ({
       pdbEntries,
       status: 'ready',
       error: null,
+      solubilityStatus: 'searching',
     });
+
+    // Kick off solubility search in the background (non-blocking)
+    searchSolubility(proteinData.sequence.value, cleanId)
+      .then((hits) => set({ solubilityHits: hits, solubilityStatus: 'done' }))
+      .catch(() => set({ solubilityStatus: 'error' }));
   },
 });

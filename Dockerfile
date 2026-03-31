@@ -5,8 +5,28 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-# SPA routing: serve index.html for all routes
-RUN printf 'server {\n  listen 80;\n  root /usr/share/nginx/html;\n  index index.html;\n  location / {\n    try_files $uri $uri/ /index.html;\n  }\n}\n' > /etc/nginx/conf.d/default.conf
-EXPOSE 80
+FROM node:22-slim AS runtime
+WORKDIR /app
+
+# Install curl and ca-certificates for downloading mmseqs2
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# Install mmseqs2 (architecture-aware)
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then ARCHIVE="mmseqs-linux-avx2.tar.gz"; \
+    elif [ "$ARCH" = "aarch64" ]; then ARCHIVE="mmseqs-linux-arm64.tar.gz"; \
+    else echo "Unsupported arch: $ARCH" && exit 1; fi && \
+    curl -fsSL "https://github.com/soedinglab/MMseqs2/releases/latest/download/${ARCHIVE}" | tar xz && \
+    mv mmseqs/bin/mmseqs /usr/local/bin/mmseqs && \
+    rm -rf mmseqs
+
+# Install express (only production dependency needed at runtime)
+COPY package.json ./
+RUN npm install express
+
+# Copy built assets, server, and solubility database
+COPY --from=builder /app/dist ./dist
+COPY server.js sol.fasta ./
+
+EXPOSE 3000
+CMD ["node", "server.js"]

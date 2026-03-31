@@ -46,6 +46,7 @@ const TRACK_HEIGHT = 28;
 const AXIS_HEIGHT = 20;
 const PTM_ROW_HEIGHT = 18;
 const TM_ROW_HEIGHT = 16;
+const SOL_ROW_HEIGHT = 16;
 const SVG_PADDING = 8;
 
 
@@ -74,6 +75,8 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
   const pdbEntries = useStore((s) => s.pdbEntries);
   const showPdbTracks = useStore((s) => s.showPdbTracks);
   const showProcessingTracks = useStore((s) => s.showProcessingTracks);
+  const solubilityHits = useStore((s) => s.solubilityHits);
+  const solubilityStatus = useStore((s) => s.solubilityStatus);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -118,6 +121,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
   const hasTmRegions = tmRegions.length > 0;
   const showDomainTracks = groups.length > 0;
   const showPdbSection = showPdbTracks && pdbEntries.length > 0;
+  const showSolTrack = solubilityStatus !== 'idle';
   const tracksHeight = groups.length * TRACK_HEIGHT;
   const processingRows = useMemo(
     () => showProcessingTracks && processingRegions.length > 0 ? packRows(processingRegions) : [],
@@ -125,8 +129,9 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
   );
   const processingSecHeight = processingRows.length * TRACK_HEIGHT;
   const tmSecHeight = hasTmRegions ? TM_ROW_HEIGHT : 0;
+  const solSecHeight = showSolTrack ? SOL_ROW_HEIGHT : 0;
   const pdbSecHeight = showPdbSection ? pdbTrackHeight(pdbEntries) : 0;
-  const svgHeight = tracksHeight + processingSecHeight + tmSecHeight + pdbSecHeight + AXIS_HEIGHT + (hasPtms ? PTM_ROW_HEIGHT : 0);
+  const svgHeight = tracksHeight + processingSecHeight + tmSecHeight + solSecHeight + pdbSecHeight + AXIS_HEIGHT + (hasPtms ? PTM_ROW_HEIGHT : 0);
   const showProcessingSection = processingRows.length > 0;
 
   function clientXToResidue(clientX: number): number {
@@ -219,7 +224,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
   // Hover cursor x position (within tracks group coordinate)
   const hoverX = hoverResidue != null ? (hoverResidue / sequenceLength) * svgWidth : null;
 
-  if (!showDomainTracks && !showPdbSection && !showProcessingSection) {
+  if (!showDomainTracks && !showPdbSection && !showProcessingSection && !showSolTrack) {
     const msg = domains.length === 0
       ? 'No domain annotations found'
       : 'No sources selected. Use the menu above to enable domain tracks.';
@@ -348,7 +353,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
         )}
 
         {/* Axis */}
-        <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + processingSecHeight + tmSecHeight + pdbSecHeight})`}>
+        <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + processingSecHeight + tmSecHeight + solSecHeight + pdbSecHeight})`}>
           <line x1={0} y1={0} x2={svgWidth} y2={0} stroke="#e2e8f0" strokeWidth={1} />
           {axisTicks().map((tick) => {
             const x = (tick / sequenceLength) * svgWidth;
@@ -363,7 +368,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
 
         {/* PTM row */}
         {hasPtms && (
-          <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + processingSecHeight + tmSecHeight + pdbSecHeight + AXIS_HEIGHT})`}>
+          <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + processingSecHeight + tmSecHeight + solSecHeight + pdbSecHeight + AXIS_HEIGHT})`}>
             {/* Row label in the reserved label area */}
             <text
               x={-LABEL_WIDTH + 4}
@@ -475,13 +480,82 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
           )}
         </g>
 
+        {/* E. coli solubility track */}
+        {showSolTrack && (
+          <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + processingSecHeight + tmSecHeight})`}>
+            <text
+              x={-LABEL_WIDTH + 4}
+              y={SOL_ROW_HEIGHT / 2 + 4}
+              fontSize={9}
+              fill="#94a3b8"
+              fontFamily="monospace"
+            >
+              E.coli
+            </text>
+            {solubilityStatus === 'searching' && (
+              <text
+                x={4}
+                y={SOL_ROW_HEIGHT / 2 + 4}
+                fontSize={9}
+                fill="#94a3b8"
+                fontFamily="monospace"
+                fontStyle="italic"
+              >
+                Searching…
+              </text>
+            )}
+            {solubilityStatus === 'error' && (
+              <text
+                x={4}
+                y={SOL_ROW_HEIGHT / 2 + 4}
+                fontSize={9}
+                fill="#f87171"
+                fontFamily="monospace"
+              >
+                Search failed
+              </text>
+            )}
+            {solubilityStatus === 'done' && solubilityHits.length === 0 && (
+              <text
+                x={4}
+                y={SOL_ROW_HEIGHT / 2 + 4}
+                fontSize={9}
+                fill="#94a3b8"
+                fontFamily="monospace"
+                fontStyle="italic"
+              >
+                No matches
+              </text>
+            )}
+            {solubilityStatus === 'done' && solubilityHits.map((hit, i) => {
+              const x = (hit.queryStart / sequenceLength) * svgWidth;
+              const w = Math.max(2, ((hit.queryEnd - hit.queryStart + 1) / sequenceLength) * svgWidth);
+              return (
+                <rect
+                  key={i}
+                  x={x}
+                  y={3}
+                  width={w}
+                  height={SOL_ROW_HEIGHT - 6}
+                  rx={2}
+                  fill="#16a34a"
+                  fillOpacity={0.75}
+                  style={{ cursor: 'default' }}
+                >
+                  <title>{hit.target} ({hit.identity.toFixed(1)}% identity, {hit.queryStart}–{hit.queryEnd})</title>
+                </rect>
+              );
+            })}
+          </g>
+        )}
+
         {/* PDB structures track */}
         {showPdbSection && (
           <PdbTrack
             entries={pdbEntries}
             sequenceLength={sequenceLength}
             svgWidth={svgWidth}
-            yOffset={tracksHeight + processingSecHeight + tmSecHeight}
+            yOffset={tracksHeight + processingSecHeight + tmSecHeight + solSecHeight}
             labelWidth={LABEL_WIDTH}
           />
         )}

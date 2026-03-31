@@ -70,6 +70,13 @@ export interface Domain {
   end: number;   // 1-based
 }
 
+export interface SolubilityHit {
+  target: string;      // fragment name from sol.fasta
+  identity: number;    // 0–100 percentage
+  queryStart: number;  // 1-based position in query protein
+  queryEnd: number;    // 1-based position in query protein
+}
+
 export interface PDBEntry {
   pdbId: string;
   chainId: string;

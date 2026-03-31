@@ -1,4 +1,4 @@
-import type { ProteinData, PTM, TransmembraneRegion, ProcessingRegion } from '../types/protein';
+import type { ProteinData, PTM, TransmembraneRegion, ProcessingRegion, ProteinInteraction } from '../types/protein';
 import { PTMType, ProcessingType } from '../types/protein';
 
 export class UniprotNotFoundError extends Error {
@@ -82,6 +82,35 @@ function extractProcessingRegions(features: any[]): ProcessingRegion[] {
   return regions;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractInteractions(uniprotId: string, comments: any[]): { interactions: ProteinInteraction[]; subunitText: string | null } {
+  const interactions: ProteinInteraction[] = [];
+  let subunitText: string | null = null;
+
+  for (const comment of comments) {
+    if (comment.commentType === 'INTERACTION') {
+      for (const entry of comment.interactions ?? []) {
+        const accession: string = entry.interactantTwo?.uniProtKBAccession ?? '';
+        if (!accession) continue;
+        interactions.push({
+          partnerAccession: accession,
+          partnerGeneName: entry.interactantTwo?.geneName ?? null,
+          numberOfExperiments: entry.numberOfExperiments ?? 0,
+          isSelf: accession === uniprotId,
+          isXenoInteraction: entry.organismDiffer ?? false,
+        });
+      }
+    }
+    if (comment.commentType === 'SUBUNIT') {
+      subunitText = comment.texts?.[0]?.value ?? null;
+    }
+  }
+
+  // Sort by experiment count descending
+  interactions.sort((a, b) => b.numberOfExperiments - a.numberOfExperiments);
+  return { interactions, subunitText };
+}
+
 export async function fetchUniprotEntry(id: string): Promise<ProteinData> {
   const url = `https://rest.uniprot.org/uniprotkb/${id}.json`;
   const res = await fetch(url);
@@ -103,9 +132,11 @@ export async function fetchUniprotEntry(id: string): Promise<ProteinData> {
     id;
 
   const features = data.features ?? [];
+  const comments = data.comments ?? [];
   const ptms = extractPTMs(features);
   const tmRegions = extractTmRegions(features);
   const processingRegions = extractProcessingRegions(features);
+  const { interactions, subunitText } = extractInteractions(id.toUpperCase(), comments);
 
   return {
     uniprotId: id.toUpperCase(),
@@ -118,5 +149,7 @@ export async function fetchUniprotEntry(id: string): Promise<ProteinData> {
     ptms,
     tmRegions,
     processingRegions,
+    interactions,
+    subunitText,
   };
 }

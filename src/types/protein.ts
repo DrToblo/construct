@@ -41,6 +41,14 @@ export interface TransmembraneRegion {
   description: string;
 }
 
+export interface ProteinInteraction {
+  partnerAccession: string;
+  partnerGeneName: string | null;
+  numberOfExperiments: number;
+  isSelf: boolean;          // same accession → homodimer / oligomer
+  isXenoInteraction: boolean; // different organism
+}
+
 export interface ProteinData {
   uniprotId: string;
   name: string;
@@ -49,6 +57,8 @@ export interface ProteinData {
   ptms: PTM[];
   tmRegions: TransmembraneRegion[];
   processingRegions: ProcessingRegion[];
+  interactions: ProteinInteraction[];
+  subunitText: string | null;
 }
 
 export interface Domain {

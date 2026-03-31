@@ -7,6 +7,7 @@ import { SequenceViewer } from './components/SequenceViewer/SequenceViewer';
 import { ErrorBanner } from './components/ui/ErrorBanner';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { HamburgerMenu } from './components/ui/HamburgerMenu';
+import { InteractionList } from './components/InteractionList/InteractionList';
 import { mwPlugin } from './plugins/analysis/mwPlugin';
 import { piPlugin } from './plugins/analysis/piPlugin';
 import { PTMType } from './types/protein';
@@ -104,7 +105,7 @@ export default function App() {
 
         {/* Stats */}
         {stats && (
-          <div style={{ padding: '10px 12px', flexShrink: 0 }}>
+          <div style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
             <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, color: hasConstruct ? '#2563eb' : '#94a3b8' }}>
               {hasConstruct ? `Construct ${startResidue}–${endResidue}` : 'Full protein'}
             </div>
@@ -112,6 +113,16 @@ export default function App() {
             <StatRow label="pI" value={stats.pI.toFixed(2)} />
             <StatRow label="SS bonds" value={stats.ssBonds.toString()} />
             <StatRow label="Length" value={`${stats.residues} aa`} />
+          </div>
+        )}
+
+        {/* Interactions */}
+        {proteinData && (proteinData.interactions.length > 0 || proteinData.subunitText) && (
+          <div style={{ flexShrink: 0, overflowY: 'auto' }}>
+            <InteractionList
+              interactions={proteinData.interactions}
+              subunitText={proteinData.subunitText}
+            />
           </div>
         )}
       </div>

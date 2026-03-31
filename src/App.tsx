@@ -118,7 +118,7 @@ export default function App() {
 
         {/* Interactions */}
         {proteinData && (proteinData.interactions.length > 0 || proteinData.subunitText) && (
-          <div style={{ flexShrink: 0, overflowY: 'auto' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <InteractionList
               interactions={proteinData.interactions}
               subunitText={proteinData.subunitText}

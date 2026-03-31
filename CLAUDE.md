@@ -2,20 +2,22 @@
 
 A protein engineering web app for designing construct boundaries. Load a UniProt ID → see domain architecture, 3D structure, sequence, and biophysical analysis. Select a residue range interactively; the selection syncs across all views.
 
-**Stack:** React 19 + TypeScript, Vite, Zustand, Molstar 3D viewer, Tailwind CSS 4, PostCSS.
-**Dev server:** `npm run dev` → http://localhost:5173 (or 5175 if already in use).
+**Stack:** React 19 + TypeScript, Vite, Zustand, Molstar 3D viewer, Tailwind CSS 4, PostCSS, Express (backend).
+**Dev:** run two processes — `npm run server` (Express on :3000) + `npm run dev` (Vite on :5173, proxies `/api` → :3000).
+**Production:** `node server.js` serves both the API and the built static files on port 3000.
 
 ---
 
 ## Layout (App.tsx)
 
 ```
-Header (protein name, hamburger menu)
-SearchBar
-DomainDiagram   ← full width; drag to select construct range; shows PTM diamonds + TM bars
-Sequence        ← full width single-line strip; horizontally scrollable; PyMOL-style; draggable handles
-────────────────────────────────────
-StructureViewer (68%)  │  AnalysisPanel (32%)
+Left sidebar (210px)                    Right main (flex: 1)
+─────────────────────                   ──────────────────────────────────────
+Header + hamburger menu                 DomainDiagram   ← full width; drag to select; PTM
+SearchBar                                               diamonds + TM bars + E.coli track
+Protein info (name, organism, ID)       Sequence        ← full width; scrollable; draggable handles
+Stats (MW, pI, SS bonds, length)        ────────────────────────────────────
+InteractionList (scrollable, flex:1)    StructureViewer (68%)  │  AnalysisPanel (32%)
 ```
 
 ---
@@ -23,6 +25,8 @@ StructureViewer (68%)  │  AnalysisPanel (32%)
 ## Source tree
 
 ```
+server.js                            Express API server; POST /api/mmseqs-search + serves dist/
+sol.fasta                            Curated E. coli-expressed protein fragments (search target)
 src/
 ├── App.tsx                          Main layout; wires all panels together
 ├── main.tsx                         React entry point
@@ -30,13 +34,16 @@ src/
 ├── store/
 │   ├── index.ts                     Zustand store (combines slices); exports useStore
 │   └── slices/
-│       ├── proteinSlice.ts          Protein data, domains, structureUrl, status, loadProtein()
+│       ├── proteinSlice.ts          Protein data, domains, structureUrl, status, loadProtein();
+│       │                            also solubilityHits + solubilityStatus; triggers mmseqs
+│       │                            search after loadProtein resolves
 │       ├── constructSlice.ts        startResidue, endResidue, selectionStep, setRange()
 │       └── pluginSlice.ts           activeStructurePluginIds, activeAnalysisPluginIds,
 │                                    activePtmTypes, showTmRegions
 │
 ├── types/
-│   ├── protein.ts                   ProteinData, Domain, PTM, PTMType, TransmembraneRegion
+│   ├── protein.ts                   ProteinData, Domain, PTM, PTMType, TransmembraneRegion,
+│   │                                SolubilityHit
 │   ├── construct.ts                 ConstructSelection, SelectionStep
 │   └── plugins.ts                   StructurePlugin, AnalysisPlugin, MolstarHandle
 │
@@ -45,15 +52,18 @@ src/
 │   ├── interpro.ts                  fetchInterproDomains(id) → Domain[]
 │   ├── alphafold.ts                 fetchAlphaFoldStructure(id) → { cifUrl }
 │   ├── rcsb.ts                      fetchRcsbByUniprot(id) → { cifUrl }  (fallback)
-│   └── pdbe.ts                      fetchPdbEntries(id) → PDBEntry[]
+│   ├── pdbe.ts                      fetchPdbEntries(id) → PDBEntry[]
+│   └── mmseqs.ts                    searchSolubility(sequence, uniprotId) → SolubilityHit[]
+│                                    calls POST /api/mmseqs-search
 │
 ├── components/
 │   ├── SearchBar/SearchBar.tsx      UniProt ID input; calls store.loadProtein()
 │   │
 │   ├── DomainDiagram/
 │   │   ├── DomainDiagram.tsx        SVG diagram; drag-to-select residue range; TM region row
-│   │   │                            (dark bars, labeled "TM"); PTM diamond row; draggable
-│   │   │                            start/end handles; calls store.setRange() on mouseup
+│   │   │                            (dark bars, labeled "TM"); E.coli solubility row (green
+│   │   │                            bars, fragment ID label + identity % tooltip); PTM diamond
+│   │   │                            row; draggable start/end handles
 │   │   ├── DomainTrack.tsx          One SVG row per domain source database
 │   │   ├── DomainTooltip.tsx        Hover tooltip for domain boxes
 │   │   ├── ConstructOverlay.tsx     Green overlay for committed selection (with labels)
@@ -78,6 +88,11 @@ src/
 │   │
 │   ├── AnalysisPanel/AnalysisPanel.tsx  Runs active analysis plugins on construct slice;
 │   │                                    shows MW, pI, composition, charge
+│   │
+│   ├── InteractionList/InteractionList.tsx  Known protein-protein interactions from UniProt;
+│   │                                         partner name + experiment count bar chart;
+│   │                                         expandable subunit/complex text; lives in sidebar
+│   │                                         (flex:1, scrollable — can hold many entries)
 │   │
 │   └── ui/
 │       ├── HamburgerMenu.tsx        Toggle domain sources, PDB tracks, structure plugins
@@ -117,11 +132,25 @@ src/
 ### Loading a protein
 ```
 SearchBar → store.loadProtein(id)
-  → resets selectedDomainSources to ['pfam']
+  → resets selectedDomainSources to ['pfam'], solubilityHits to []
   → parallel: fetchUniprotEntry, fetchInterproDomains, fetchAlphaFoldStructure, fetchPdbEntries
        (AlphaFold 404 → fallback to fetchRcsbByUniprot)
   → store: proteinData (incl. ptms, tmRegions), domains, structureUrl, pdbEntries, status='ready'
+  → immediately sets solubilityStatus='searching', fires searchSolubility() in background
+  → on search resolve: solubilityHits=[...], solubilityStatus='done'
   → App renders all panels
+```
+
+### E. coli solubility search
+```
+searchSolubility(sequence, uniprotId)
+  → POST /api/mmseqs-search  { sequence, uniprotId }
+  → server.js: writes temp FASTA, runs mmseqs easy-search against sol.fasta
+               --min-seq-id 0.95  --format-output query,target,pident,qstart,qend
+  → returns SolubilityHit[]  { target, identity, queryStart, queryEnd }
+  → DomainDiagram renders "E.coli" track: green bars at queryStart–queryEnd
+    label = fragment ID (truncated to 14 chars); tooltip = full name + identity %
+    "Searching…" shown while in-flight; "No matches" if empty
 ```
 
 ### Selecting a construct
@@ -151,7 +180,8 @@ When `selectionStep === 'complete'`:
 ```ts
 // proteinSlice
 uniprotId: string | null
-proteinData: ProteinData | null      // { uniprotId, name, organism, sequence, ptms, tmRegions }
+proteinData: ProteinData | null      // { uniprotId, name, organism, sequence, ptms, tmRegions,
+                                     //   processingRegions, interactions, subunitText }
 domains: Domain[]                     // { accession, name, sourceDatabase, entryType, start, end }
 selectedDomainSources: string[]       // which DB tracks are visible; default ['pfam'] on load
 structureUrl: string | null
@@ -163,6 +193,8 @@ showPdbTracks: boolean
 activePdbId: string | null
 status: 'idle' | 'loading' | 'error' | 'ready'
 error: string | null
+solubilityHits: SolubilityHit[]       // { target, identity, queryStart, queryEnd }
+solubilityStatus: 'idle' | 'searching' | 'done' | 'error'
 
 // constructSlice
 startResidue: number | null           // 1-based
@@ -175,6 +207,22 @@ activeAnalysisPluginIds: string[]
 activePtmTypes: PTMType[]             // which PTM types to show in 3D
 showTmRegions: boolean                // toggle TM region plugin in 3D
 ```
+
+---
+
+## DomainDiagram SVG layout (top → bottom)
+
+```
+tracksHeight          domain tracks (one row per selectedDomainSources entry)
+processingSecHeight   UniProt processing regions (signal, chain, propeptide, …)
+tmSecHeight           TM region row (TM_ROW_HEIGHT = 16px)
+solSecHeight          E.coli solubility row (SOL_ROW_HEIGHT = 20px); hidden when status='idle'
+pdbSecHeight          PDB coverage tracks (optional)
+AXIS_HEIGHT           residue number axis
+PTM_ROW_HEIGHT        PTM diamond row (optional)
+```
+
+All y-offsets are computed as cumulative sums of the above; any new row must update every offset below it and the total `svgHeight`.
 
 ---
 
@@ -208,3 +256,5 @@ Molstar's internal APIs are poorly documented. These are the patterns confirmed 
 - **ResidueToken / PTMMarker**: still exist in `SequenceViewer/` but are no longer used.
 - **RCSB structures**: residue numbering may differ from UniProt sequence numbering; a warning banner appears in the structure viewer when source is RCSB.
 - **vite.config.ts**: pre-existing TypeScript error (`format` option type mismatch). Does not affect `npm run dev` or runtime behaviour.
+- **Express 5**: installed (express@^5). Catch-all SPA route uses regex `/.*/ ` not `'*'` (path-to-regexp v8 requires named wildcards).
+- **InteractionList scroll**: the wrapper in App.tsx uses `flex:1, minHeight:0, overflowY:auto` so the list scrolls within the sidebar rather than overflowing it.

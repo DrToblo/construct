@@ -15,6 +15,8 @@ export function HamburgerMenu() {
   const pdbEntries = useStore((s) => s.pdbEntries);
   const showPdbTracks = useStore((s) => s.showPdbTracks);
   const setShowPdbTracks = useStore((s) => s.setShowPdbTracks);
+  const showProcessingTracks = useStore((s) => s.showProcessingTracks);
+  const setShowProcessingTracks = useStore((s) => s.setShowProcessingTracks);
 
   // Derive unique domain sources from loaded domains
   const availableSources = Array.from(new Set(domains.map((d) => d.sourceDatabase))).sort();
@@ -111,6 +113,34 @@ export function HamburgerMenu() {
               ))
             )}
           </div>
+
+          <div style={{ height: '1px', background: '#e2e8f0', margin: '4px 0 12px' }} />
+
+          {/* Processing Annotations */}
+          <div style={{ padding: '0 16px 8px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Processing Annotations
+          </div>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '4px 16px',
+              fontSize: '13px',
+              cursor: 'pointer',
+              gap: '8px',
+              color: '#334155',
+              marginBottom: '12px',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            <input
+              type="checkbox"
+              checked={showProcessingTracks}
+              onChange={(e) => setShowProcessingTracks(e.target.checked)}
+            />
+            Signal · Transit · Chain · Peptide…
+          </label>
 
           <div style={{ height: '1px', background: '#e2e8f0', margin: '4px 0 12px' }} />
 

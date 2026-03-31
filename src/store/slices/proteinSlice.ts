@@ -24,6 +24,7 @@ export interface ProteinSlice {
   // PDB structures
   pdbEntries: PDBEntry[];
   showPdbTracks: boolean;
+  showProcessingTracks: boolean;
   activePdbId: string | null;
   status: LoadStatus;
   error: string | null;
@@ -31,6 +32,7 @@ export interface ProteinSlice {
   clearProtein: () => void;
   setSelectedDomainSources: (sources: string[]) => void;
   setShowPdbTracks: (show: boolean) => void;
+  setShowProcessingTracks: (show: boolean) => void;
   selectPdbEntry: (entry: PDBEntry) => Promise<void>;
   clearPdbSelection: () => void;
 }
@@ -48,6 +50,7 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set, get) => ({
   defaultStructureChainIds: null,
   pdbEntries: [],
   showPdbTracks: false,
+  showProcessingTracks: true,
   activePdbId: null,
   status: 'idle',
   error: null,
@@ -66,6 +69,7 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set, get) => ({
       defaultStructureChainIds: null,
       pdbEntries: [],
       showPdbTracks: false,
+      showProcessingTracks: true,
       activePdbId: null,
       status: 'idle',
       error: null,
@@ -74,6 +78,8 @@ export const createProteinSlice: StateCreator<ProteinSlice> = (set, get) => ({
   setSelectedDomainSources: (sources) => set({ selectedDomainSources: sources }),
 
   setShowPdbTracks: (show) => set({ showPdbTracks: show }),
+
+  setShowProcessingTracks: (show) => set({ showProcessingTracks: show }),
 
   selectPdbEntry: async (entry) => {
     const { uniprotId } = get();

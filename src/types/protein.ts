@@ -1,3 +1,20 @@
+export const ProcessingType = {
+  SIGNAL: 'Signal',
+  TRANSIT: 'Transit',
+  PROPEPTIDE: 'Propeptide',
+  CHAIN: 'Chain',
+  PEPTIDE: 'Peptide',
+} as const;
+export type ProcessingType = typeof ProcessingType[keyof typeof ProcessingType];
+
+export interface ProcessingRegion {
+  type: ProcessingType;
+  name: string;
+  start: number; // 1-based UniProt residue
+  end: number;   // 1-based UniProt residue
+  description: string;
+}
+
 // Use const object instead of enum (required for erasableSyntaxOnly)
 export const PTMType = {
   PHOSPHORYLATION: 'phosphorylation',
@@ -31,6 +48,7 @@ export interface ProteinData {
   sequence: ProteinSequence;
   ptms: PTM[];
   tmRegions: TransmembraneRegion[];
+  processingRegions: ProcessingRegion[];
 }
 
 export interface Domain {

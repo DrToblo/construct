@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import type { Domain, PTM, PTMType, TransmembraneRegion } from '../../types/protein';
+import type { Domain, PTM, PTMType, TransmembraneRegion, ProcessingRegion } from '../../types/protein';
 import { PTM_COLOR_HEX } from '../../constants/ptmColors';
 import { DomainTrack } from './DomainTrack';
 import { ConstructOverlay } from './ConstructOverlay';
@@ -7,11 +7,38 @@ import { DragOverlay } from './DragOverlay';
 import { PdbTrack, pdbTrackHeight } from './PdbTrack';
 import { useStore } from '../../store';
 
+const PROCESSING_COLORS: Record<string, string> = {
+  Signal: '#7c3aed',
+  Transit: '#0891b2',
+  Propeptide: '#d97706',
+  Chain: '#059669',
+  Peptide: '#db2777',
+};
+
+function packRows<T extends { start: number; end: number }>(regions: T[]): T[][] {
+  const sorted = [...regions].sort((a, b) => a.start - b.start);
+  const rows: T[][] = [];
+  for (const region of sorted) {
+    let placed = false;
+    for (const row of rows) {
+      const last = row[row.length - 1];
+      if (last.end < region.start) {
+        row.push(region);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) rows.push([region]);
+  }
+  return rows;
+}
+
 interface DomainDiagramProps {
   domains: Domain[];
   sequenceLength: number;
   ptms?: PTM[];
   tmRegions?: TransmembraneRegion[];
+  processingRegions?: ProcessingRegion[];
 }
 
 const LABEL_WIDTH = 60;
@@ -30,7 +57,7 @@ interface DragState {
   current: number;
 }
 
-export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = [] }: DomainDiagramProps) {
+export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = [], processingRegions = [] }: DomainDiagramProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [containerWidth, setContainerWidth] = useState(800);
@@ -46,6 +73,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
   const setRange = useStore((s) => s.setRange);
   const pdbEntries = useStore((s) => s.pdbEntries);
   const showPdbTracks = useStore((s) => s.showPdbTracks);
+  const showProcessingTracks = useStore((s) => s.showProcessingTracks);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -91,9 +119,15 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
   const showDomainTracks = groups.length > 0;
   const showPdbSection = showPdbTracks && pdbEntries.length > 0;
   const tracksHeight = groups.length * TRACK_HEIGHT;
+  const processingRows = useMemo(
+    () => showProcessingTracks && processingRegions.length > 0 ? packRows(processingRegions) : [],
+    [processingRegions, showProcessingTracks],
+  );
+  const processingSecHeight = processingRows.length * TRACK_HEIGHT;
   const tmSecHeight = hasTmRegions ? TM_ROW_HEIGHT : 0;
   const pdbSecHeight = showPdbSection ? pdbTrackHeight(pdbEntries) : 0;
-  const svgHeight = tracksHeight + tmSecHeight + pdbSecHeight + AXIS_HEIGHT + (hasPtms ? PTM_ROW_HEIGHT : 0);
+  const svgHeight = tracksHeight + processingSecHeight + tmSecHeight + pdbSecHeight + AXIS_HEIGHT + (hasPtms ? PTM_ROW_HEIGHT : 0);
+  const showProcessingSection = processingRows.length > 0;
 
   function clientXToResidue(clientX: number): number {
     const svg = svgRef.current;
@@ -185,7 +219,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
   // Hover cursor x position (within tracks group coordinate)
   const hoverX = hoverResidue != null ? (hoverResidue / sequenceLength) * svgWidth : null;
 
-  if (!showDomainTracks && !showPdbSection) {
+  if (!showDomainTracks && !showPdbSection && !showProcessingSection) {
     const msg = domains.length === 0
       ? 'No domain annotations found'
       : 'No sources selected. Use the menu above to enable domain tracks.';
@@ -213,9 +247,76 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
       >
+        {/* Processing annotation rows */}
+        {showProcessingSection && processingRows.map((row, rowIdx) => {
+          const yOff = tracksHeight + rowIdx * TRACK_HEIGHT;
+          const padding = 4;
+          const barH = TRACK_HEIGHT - padding * 2;
+          return (
+            <g key={rowIdx} transform={`translate(${LABEL_WIDTH}, ${yOff})`}>
+              {rowIdx === 0 && (
+                <text
+                  x={-LABEL_WIDTH + 4}
+                  y={TRACK_HEIGHT / 2 + 4}
+                  fontSize={9}
+                  fill="#94a3b8"
+                  fontFamily="monospace"
+                >
+                  Processing
+                </text>
+              )}
+              <line
+                x1={0}
+                y1={TRACK_HEIGHT / 2}
+                x2={svgWidth}
+                y2={TRACK_HEIGHT / 2}
+                stroke="#e2e8f0"
+                strokeWidth={1}
+              />
+              {row.map((region, i) => {
+                const x = (region.start / sequenceLength) * svgWidth;
+                const w = Math.max(2, ((region.end - region.start + 1) / sequenceLength) * svgWidth);
+                const color = PROCESSING_COLORS[region.type] ?? '#64748b';
+                return (
+                  <g key={i}>
+                    <rect
+                      x={x}
+                      y={padding}
+                      width={w}
+                      height={barH}
+                      rx={3}
+                      fill={color}
+                      fillOpacity={0.85}
+                      stroke={color}
+                      strokeWidth={1}
+                      style={{ cursor: 'default' }}
+                    >
+                      <title>{region.type}: {region.description} ({region.start}–{region.end})</title>
+                    </rect>
+                    {w > 40 && (
+                      <text
+                        x={x + w / 2}
+                        y={padding + barH / 2 + 3}
+                        textAnchor="middle"
+                        fontSize={9}
+                        fill="#fff"
+                        fontWeight={600}
+                        pointerEvents="none"
+                        style={{ userSelect: 'none' }}
+                      >
+                        {region.type}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })}
+
         {/* TM region row */}
         {hasTmRegions && (
-          <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight})`}>
+          <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + processingSecHeight})`}>
             <text
               x={-LABEL_WIDTH + 4}
               y={TM_ROW_HEIGHT / 2 + 4}
@@ -247,7 +348,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
         )}
 
         {/* Axis */}
-        <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + tmSecHeight + pdbSecHeight})`}>
+        <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + processingSecHeight + tmSecHeight + pdbSecHeight})`}>
           <line x1={0} y1={0} x2={svgWidth} y2={0} stroke="#e2e8f0" strokeWidth={1} />
           {axisTicks().map((tick) => {
             const x = (tick / sequenceLength) * svgWidth;
@@ -262,7 +363,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
 
         {/* PTM row */}
         {hasPtms && (
-          <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + tmSecHeight + pdbSecHeight + AXIS_HEIGHT})`}>
+          <g transform={`translate(${LABEL_WIDTH}, ${tracksHeight + processingSecHeight + tmSecHeight + pdbSecHeight + AXIS_HEIGHT})`}>
             {/* Row label in the reserved label area */}
             <text
               x={-LABEL_WIDTH + 4}
@@ -380,7 +481,7 @@ export function DomainDiagram({ domains, sequenceLength, ptms = [], tmRegions = 
             entries={pdbEntries}
             sequenceLength={sequenceLength}
             svgWidth={svgWidth}
-            yOffset={tracksHeight + tmSecHeight}
+            yOffset={tracksHeight + processingSecHeight + tmSecHeight}
             labelWidth={LABEL_WIDTH}
           />
         )}

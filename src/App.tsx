@@ -148,6 +148,7 @@ export default function App() {
                 sequenceLength={proteinData.sequence.length}
                 ptms={proteinData.ptms}
                 tmRegions={proteinData.tmRegions}
+                processingRegions={proteinData.processingRegions}
               />
             </div>
             <div style={{ flexShrink: 0, borderBottom: '1px solid #e2e8f0', overflow: 'hidden' }}>

@@ -1,5 +1,5 @@
-import type { ProteinData, PTM, TransmembraneRegion } from '../types/protein';
-import { PTMType } from '../types/protein';
+import type { ProteinData, PTM, TransmembraneRegion, ProcessingRegion } from '../types/protein';
+import { PTMType, ProcessingType } from '../types/protein';
 
 export class UniprotNotFoundError extends Error {
   constructor(id: string) {
@@ -53,6 +53,35 @@ function extractTmRegions(features: any[]): TransmembraneRegion[] {
   return regions;
 }
 
+const PROCESSING_TYPE_MAP: Record<string, ProcessingType> = {
+  'Signal': ProcessingType.SIGNAL,
+  'Transit': ProcessingType.TRANSIT,
+  'Propeptide': ProcessingType.PROPEPTIDE,
+  'Chain': ProcessingType.CHAIN,
+  'Peptide': ProcessingType.PEPTIDE,
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractProcessingRegions(features: any[]): ProcessingRegion[] {
+  const regions: ProcessingRegion[] = [];
+  for (const f of features) {
+    const type = f.type ?? '';
+    const processingType = PROCESSING_TYPE_MAP[type];
+    if (!processingType) continue;
+    const start = f.location?.start?.value;
+    const end = f.location?.end?.value ?? start;
+    if (start == null) continue;
+    regions.push({
+      type: processingType,
+      name: f.description ?? type,
+      start: Number(start),
+      end: Number(end),
+      description: f.description ?? type,
+    });
+  }
+  return regions;
+}
+
 export async function fetchUniprotEntry(id: string): Promise<ProteinData> {
   const url = `https://rest.uniprot.org/uniprotkb/${id}.json`;
   const res = await fetch(url);
@@ -76,6 +105,7 @@ export async function fetchUniprotEntry(id: string): Promise<ProteinData> {
   const features = data.features ?? [];
   const ptms = extractPTMs(features);
   const tmRegions = extractTmRegions(features);
+  const processingRegions = extractProcessingRegions(features);
 
   return {
     uniprotId: id.toUpperCase(),
@@ -87,5 +117,6 @@ export async function fetchUniprotEntry(id: string): Promise<ProteinData> {
     },
     ptms,
     tmRegions,
+    processingRegions,
   };
 }
